@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Castaway Detail - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <div id="detail-loading" class="loading"><span class="spinner"></span> Loading...</div>
+    <div id="detail-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth()) return;
+
+    const castawayId = {{ castaway_id }};
+    const seasonId = await getCurrentSeasonId();
+    if (!seasonId) return;
+
+    try {
+        const detail = await apiGet(`/api/seasons/${seasonId}/castaways/${castawayId}/detail`);
+        const container = document.getElementById('detail-content');
+
+        let html = `<div class="flex-between mb-2">
+            <div>
+                <h1>${detail.name}</h1>
+                <p class="text-muted">${detail.occupation || ''} ${detail.age ? '&middot; Age ' + detail.age : ''}</p>
+            </div>
+            <div>
+                ${statusBadge(detail.status)}
+                <span class="score" style="font-size:1.5rem;margin-left:0.5rem">${detail.total_score.toFixed(2)} pts</span>
+            </div>
+        </div>`;
+
+        if (detail.drafted_by.length > 0) {
+            html += `<p class="text-muted mb-2">Drafted by: <strong>${detail.drafted_by.join(', ')}</strong></p>`;
+        }
+
+        if (detail.episode_scores.length > 0) {
+            html += '<div class="card"><div class="card-header">Episode Breakdown</div>';
+            html += '<table><thead><tr><th>Episode</th><th>Title</th><th>Score</th><th>Events</th></tr></thead><tbody>';
+            for (const ep of detail.episode_scores) {
+                const events = Object.entries(ep.event_data || {})
+                    .filter(([k, v]) => v > 0)
+                    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                    .join(', ');
+                html += `<tr>
+                    <td>Ep ${ep.episode_number}</td>
+                    <td>${ep.episode_title || '-'}</td>
+                    <td>${formatScore(ep.calculated_score)}</td>
+                    <td class="text-muted" style="font-size:0.8rem">${events || '-'}</td>
+                </tr>`;
+            }
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p class="text-muted">No episode scores yet.</p>';
+        }
+
+        container.innerHTML = html;
+        document.getElementById('detail-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('detail-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+});
+</script>
+{% endblock %}

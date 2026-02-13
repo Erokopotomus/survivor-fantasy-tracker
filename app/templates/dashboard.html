@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <div class="flex-between mb-2">
+        <h1>Leaderboard</h1>
+        <div id="season-info" class="text-muted"></div>
+    </div>
+    <div id="leaderboard-loading" class="loading"><span class="spinner"></span> Loading...</div>
+    <div id="leaderboard-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = requireAuth();
+    if (!auth) return;
+
+    try {
+        const seasonId = await getCurrentSeasonId();
+        if (!seasonId) {
+            document.getElementById('leaderboard-loading').innerHTML = '<p class="text-muted">No seasons found.</p>';
+            return;
+        }
+
+        const seasons = await getSeasons();
+        const season = seasons.find(s => s.id === seasonId);
+        document.getElementById('season-info').textContent = season ? season.name : '';
+
+        const lb = await apiGet(`/api/seasons/${seasonId}/leaderboard`);
+        const container = document.getElementById('leaderboard-content');
+
+        if (lb.entries.length === 0) {
+            container.innerHTML = '<p class="text-muted">No scores yet. Draft some castaways and start scoring episodes!</p>';
+        } else {
+            let html = '<div class="card">';
+            html += '<table><thead><tr><th>Rank</th><th>Player</th><th>Castaways</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
+            for (const entry of lb.entries) {
+                const castaways = entry.roster_breakdown.map(c =>
+                    `${c.castaway_name} (${c.total_score.toFixed(2)})`
+                ).join(', ');
+                html += `<tr>
+                    <td class="${rankClass(entry.rank)}">#${entry.rank}</td>
+                    <td><strong>${entry.player_name}</strong>${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</td>
+                    <td class="text-muted" style="font-size:0.8rem">${castaways || 'No picks yet'}</td>
+                    <td>${formatScore(entry.prediction_bonus)}</td>
+                    <td>${formatScore(entry.grand_total)}</td>
+                </tr>`;
+            }
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        document.getElementById('leaderboard-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('leaderboard-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+});
+</script>
+{% endblock %}

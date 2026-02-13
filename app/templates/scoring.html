@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Score Episode - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <div class="flex-between mb-2">
+        <h1>Score Episode</h1>
+    </div>
+    <div id="scoring-alert"></div>
+
+    <div class="episode-selector">
+        <label style="margin:0;margin-right:0.5rem;">Episode:</label>
+        <select id="episode-select"><option value="">Loading...</option></select>
+        <button class="btn btn-outline" onclick="loadTemplate()">Load Template</button>
+        <button class="btn btn-green" onclick="createNewEpisode()">+ New Episode</button>
+    </div>
+
+    <div id="new-episode-form" class="card hidden">
+        <h3 class="card-header">Create New Episode</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+            <div class="form-group">
+                <label>Episode Number</label>
+                <input type="number" id="new-ep-number" min="1">
+            </div>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="new-ep-title" placeholder="Episode title">
+            </div>
+            <div class="form-group">
+                <label>Options</label>
+                <div style="display:flex;gap:1rem;padding-top:0.25rem">
+                    <label style="display:flex;align-items:center;gap:0.25rem;font-size:0.8rem">
+                        <input type="checkbox" id="new-ep-merge" style="width:auto"> Merge
+                    </label>
+                    <label style="display:flex;align-items:center;gap:0.25rem;font-size:0.8rem">
+                        <input type="checkbox" id="new-ep-finale" style="width:auto"> Finale
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button class="btn" onclick="submitNewEpisode()">Create Episode</button>
+    </div>
+
+    <div id="scoring-loading" class="loading hidden"><span class="spinner"></span> Loading template...</div>
+    <div id="scoring-grid-container" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSeasonId = null;
+let currentTemplate = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = requireAuth();
+    if (!auth || !auth.is_commissioner) {
+        document.getElementById('page-content').innerHTML = '<p class="alert alert-error">Commissioner access required.</p>';
+        return;
+    }
+
+    currentSeasonId = await getCurrentSeasonId();
+    if (!currentSeasonId) return;
+
+    await loadEpisodes();
+});
+
+async function loadEpisodes() {
+    const eps = await apiGet(`/api/seasons/${currentSeasonId}/episodes`);
+    const sel = document.getElementById('episode-select');
+    sel.innerHTML = '<option value="">Select episode...</option>';
+    for (const ep of eps) {
+        const scored = ep.is_scored ? ' [SCORED]' : '';
+        sel.innerHTML += `<option value="${ep.id}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}${scored}</option>`;
+    }
+}
+
+function createNewEpisode() {
+    document.getElementById('new-episode-form').classList.toggle('hidden');
+}
+
+async function submitNewEpisode() {
+    const alertBox = document.getElementById('scoring-alert');
+    try {
+        const ep = await apiPost(`/api/seasons/${currentSeasonId}/episodes`, {
+            episode_number: parseInt(document.getElementById('new-ep-number').value),
+            title: document.getElementById('new-ep-title').value || null,
+            is_merge: document.getElementById('new-ep-merge').checked,
+            is_finale: document.getElementById('new-ep-finale').checked,
+        });
+        showAlert(alertBox, `Episode ${ep.episode_number} created!`, 'success');
+        document.getElementById('new-episode-form').classList.add('hidden');
+        await loadEpisodes();
+        document.getElementById('episode-select').value = ep.id;
+        loadTemplate();
+    } catch (err) {
+        showAlert(alertBox, err.message);
+    }
+}
+
+async function loadTemplate() {
+    const epId = document.getElementById('episode-select').value;
+    if (!epId) return;
+
+    const loading = document.getElementById('scoring-loading');
+    const container = document.getElementById('scoring-grid-container');
+    loading.classList.remove('hidden');
+    container.classList.add('hidden');
+
+    try {
+        currentTemplate = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}/template`);
+        renderGrid(currentTemplate);
+        loading.classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        loading.innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+}
+
+function renderGrid(template) {
+    const container = document.getElementById('scoring-grid-container');
+    const rules = template.rules;
+    const castaways = template.castaways;
+
+    let html = '<div class="scoring-grid"><table>';
+
+    // Header row
+    html += '<thead><tr><th style="position:sticky;left:0;background:var(--bg-input);z-index:15">Castaway</th>';
+    for (const rule of rules) {
+        const tooltip = `${rule.rule_name} (${rule.points > 0 ? '+' : ''}${rule.points} pts, ${rule.multiplier})`;
+        html += `<th class="rule-header" title="${tooltip}">${rule.rule_name}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // Castaway rows
+    for (const c of castaways) {
+        html += `<tr data-castaway-id="${c.castaway_id}">`;
+        html += `<td class="castaway-name">${c.castaway_name}</td>`;
+        for (const rule of rules) {
+            const isBinary = rule.multiplier === 'binary';
+            const defaultVal = 0;
+            if (isBinary) {
+                html += `<td><select data-rule="${rule.rule_key}" style="width:60px;padding:0.3rem;text-align:center">
+                    <option value="0">-</option><option value="1">Yes</option>
+                </select></td>`;
+            } else {
+                html += `<td><input type="number" data-rule="${rule.rule_key}" value="${defaultVal}" min="0" step="1"></td>`;
+            }
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    html += '<div class="mt-2"><button class="btn" onclick="submitScores()" style="width:100%;padding:0.75rem;font-size:1rem">Submit Scores</button></div>';
+    container.innerHTML = html;
+}
+
+async function submitScores() {
+    const epId = document.getElementById('episode-select').value;
+    const alertBox = document.getElementById('scoring-alert');
+    const rows = document.querySelectorAll('#scoring-grid-container tr[data-castaway-id]');
+
+    const events = [];
+    rows.forEach(row => {
+        const castawayId = parseInt(row.dataset.castawayId);
+        const eventData = {};
+        row.querySelectorAll('[data-rule]').forEach(input => {
+            const key = input.dataset.rule;
+            const val = input.tagName === 'SELECT' ? parseInt(input.value) : parseFloat(input.value) || 0;
+            eventData[key] = val;
+        });
+        events.push({ castaway_id: castawayId, event_data: eventData });
+    });
+
+    try {
+        const result = await apiPost(`/api/seasons/${currentSeasonId}/episodes/${epId}/score`, { events });
+        let msg = 'Scores submitted! ';
+        result.scores.sort((a, b) => b.calculated_score - a.calculated_score);
+        const top3 = result.scores.slice(0, 3).map(s => `${s.castaway_name}: ${s.calculated_score.toFixed(2)}`).join(', ');
+        msg += `Top scorers: ${top3}`;
+        showAlert(alertBox, msg, 'success');
+        await loadEpisodes();
+    } catch (err) {
+        showAlert(alertBox, err.message);
+    }
+}
+</script>
+{% endblock %}

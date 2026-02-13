@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Rosters - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <h1 class="mb-2">Rosters</h1>
+    <div id="rosters-loading" class="loading"><span class="spinner"></span> Loading...</div>
+    <div id="rosters-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth()) return;
+
+    const seasonId = await getCurrentSeasonId();
+    if (!seasonId) return;
+
+    try {
+        const rosters = await apiGet(`/api/seasons/${seasonId}/rosters`);
+        const container = document.getElementById('rosters-content');
+
+        if (rosters.length === 0) {
+            container.innerHTML = '<p class="text-muted">No rosters yet. Start the draft!</p>';
+        } else {
+            let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">';
+            for (const roster of rosters) {
+                html += `<div class="card">
+                    <div class="card-header">${roster.player_name}</div>
+                    <table><tbody>`;
+                for (const entry of roster.castaways) {
+                    const type = entry.pickup_type === 'draft'
+                        ? `<span class="text-muted" style="font-size:0.7rem">Pick #${entry.draft_position || '?'}</span>`
+                        : '<span class="badge badge-active" style="font-size:0.65rem">FA</span>';
+                    html += `<tr>
+                        <td><a href="/castaway/${entry.castaway_id}" style="color:var(--text);text-decoration:none"><strong>${entry.castaway_name}</strong></a></td>
+                        <td style="text-align:right">${type}</td>
+                    </tr>`;
+                }
+                if (roster.castaways.length === 0) {
+                    html += '<tr><td class="text-muted">No picks yet</td></tr>';
+                }
+                html += '</tbody></table></div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        document.getElementById('rosters-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('rosters-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+});
+</script>
+{% endblock %}

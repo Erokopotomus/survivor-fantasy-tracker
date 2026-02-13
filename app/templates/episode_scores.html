@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Episode Scores - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <h1 class="mb-2">Episode Scores</h1>
+
+    <div class="episode-selector">
+        <label style="margin:0;margin-right:0.5rem;">Episode:</label>
+        <select id="episode-select"><option value="">Loading...</option></select>
+        <button class="btn btn-outline" onclick="loadScores()">View Scores</button>
+    </div>
+
+    <div id="scores-loading" class="loading hidden"><span class="spinner"></span></div>
+    <div id="scores-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSeasonId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth()) return;
+    currentSeasonId = await getCurrentSeasonId();
+    if (!currentSeasonId) return;
+
+    const eps = await apiGet(`/api/seasons/${currentSeasonId}/episodes`);
+    const sel = document.getElementById('episode-select');
+    sel.innerHTML = '<option value="">Select episode...</option>';
+    for (const ep of eps) {
+        if (!ep.is_scored) continue;
+        sel.innerHTML += `<option value="${ep.episode_number}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}</option>`;
+    }
+});
+
+async function loadScores() {
+    const epNum = document.getElementById('episode-select').value;
+    if (!epNum) return;
+
+    document.getElementById('scores-loading').classList.remove('hidden');
+    document.getElementById('scores-content').classList.add('hidden');
+
+    try {
+        const recap = await apiGet(`/api/seasons/${currentSeasonId}/weekly-recap/${epNum}`);
+        const container = document.getElementById('scores-content');
+
+        let html = '<div class="card"><div class="card-header">Castaway Scores</div>';
+        html += '<table><thead><tr><th>Castaway</th><th>Score</th><th>Drafted By</th></tr></thead><tbody>';
+        for (const c of recap.castaway_scores) {
+            html += `<tr>
+                <td><strong>${c.castaway_name}</strong></td>
+                <td>${formatScore(c.episode_score)}</td>
+                <td class="text-muted" style="font-size:0.8rem">${c.drafted_by.join(', ') || '-'}</td>
+            </tr>`;
+        }
+        html += '</tbody></table></div>';
+
+        html += '<div class="card"><div class="card-header">Player Standings</div>';
+        html += '<table><thead><tr><th>Player</th><th>Episode Score</th><th>Season Total</th></tr></thead><tbody>';
+        for (const p of recap.player_standings) {
+            html += `<tr>
+                <td><strong>${p.player_name}</strong></td>
+                <td>${formatScore(p.episode_score)}</td>
+                <td>${formatScore(p.season_total)}</td>
+            </tr>`;
+        }
+        html += '</tbody></table></div>';
+
+        container.innerHTML = html;
+        document.getElementById('scores-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('scores-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

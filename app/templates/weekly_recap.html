@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Weekly Recap - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <h1 class="mb-2">Weekly Recap</h1>
+
+    <div class="episode-selector">
+        <label style="margin:0;margin-right:0.5rem;">Episode:</label>
+        <select id="episode-select"><option value="">Loading...</option></select>
+        <button class="btn btn-outline" onclick="loadRecap()">Load Recap</button>
+    </div>
+
+    <div id="recap-loading" class="loading hidden"><span class="spinner"></span></div>
+    <div id="recap-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSeasonId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth()) return;
+    currentSeasonId = await getCurrentSeasonId();
+    if (!currentSeasonId) return;
+
+    const eps = await apiGet(`/api/seasons/${currentSeasonId}/episodes`);
+    const sel = document.getElementById('episode-select');
+    sel.innerHTML = '<option value="">Select episode...</option>';
+    for (const ep of eps) {
+        if (!ep.is_scored) continue;
+        sel.innerHTML += `<option value="${ep.episode_number}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}</option>`;
+    }
+});
+
+async function loadRecap() {
+    const epNum = document.getElementById('episode-select').value;
+    if (!epNum) return;
+
+    document.getElementById('recap-loading').classList.remove('hidden');
+    document.getElementById('recap-content').classList.add('hidden');
+
+    try {
+        const recap = await apiGet(`/api/seasons/${currentSeasonId}/weekly-recap/${epNum}`);
+        const container = document.getElementById('recap-content');
+
+        let html = `<div class="recap-header card">
+            <h1>Episode ${recap.episode_number} Recap</h1>
+            <p class="text-muted">${recap.episode_title || ''}</p>
+        </div>`;
+
+        // Top scorers
+        const sorted = [...recap.castaway_scores].sort((a, b) => b.episode_score - a.episode_score);
+        const topScorer = sorted[0];
+
+        if (topScorer) {
+            html += `<div class="card text-center">
+                <div style="font-size:0.8rem;color:var(--text-muted)">TOP SCORER</div>
+                <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">${topScorer.castaway_name}</div>
+                <div style="font-size:1.25rem;font-weight:600">${topScorer.episode_score.toFixed(2)} pts</div>
+                <div class="text-muted" style="font-size:0.8rem">${topScorer.drafted_by.length > 0 ? 'Drafted by: ' + topScorer.drafted_by.join(', ') : 'Undrafted'}</div>
+            </div>`;
+        }
+
+        // All castaway scores
+        html += '<div class="card"><div class="card-header">All Castaway Scores</div>';
+        html += '<table><thead><tr><th>#</th><th>Castaway</th><th>Score</th><th>Drafted By</th></tr></thead><tbody>';
+        sorted.forEach((c, i) => {
+            html += `<tr>
+                <td class="${rankClass(i + 1)}">${i + 1}</td>
+                <td><strong>${c.castaway_name}</strong></td>
+                <td>${formatScore(c.episode_score)}</td>
+                <td class="text-muted" style="font-size:0.8rem">${c.drafted_by.join(', ') || '-'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+
+        // Player standings
+        html += '<div class="card"><div class="card-header">Fantasy Standings</div>';
+        html += '<table><thead><tr><th>#</th><th>Player</th><th>This Episode</th><th>Season Total</th></tr></thead><tbody>';
+        recap.player_standings.forEach((p, i) => {
+            html += `<tr>
+                <td class="${rankClass(i + 1)}">${i + 1}</td>
+                <td><strong>${p.player_name}</strong></td>
+                <td>${formatScore(p.episode_score)}</td>
+                <td>${formatScore(p.season_total)}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+
+        container.innerHTML = html;
+        document.getElementById('recap-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('recap-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

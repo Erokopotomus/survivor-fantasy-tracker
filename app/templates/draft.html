@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Draft - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <h1 class="mb-2">Snake Draft</h1>
+    <div id="draft-alert"></div>
+    <div id="draft-loading" class="loading"><span class="spinner"></span> Loading...</div>
+    <div id="draft-content" class="hidden">
+        <div id="turn-indicator" class="turn-indicator"></div>
+        <div id="draft-board" class="draft-board"></div>
+        <h2 class="mt-2 mb-1">Available Castaways</h2>
+        <div id="available-castaways" class="draft-available"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let seasonId = null;
+let season = null;
+let players = [];
+let castaways = [];
+let rosters = [];
+let draftOrder = [];
+let currentPick = 0;
+
+// Snake draft: 1-2-3-4-4-3-2-1-1-2-3-4-4-3-2-1
+function generateSnakeOrder(playerIds, rounds) {
+    const order = [];
+    for (let r = 0; r < rounds; r++) {
+        const roundOrder = r % 2 === 0 ? [...playerIds] : [...playerIds].reverse();
+        order.push(...roundOrder);
+    }
+    return order;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = requireAuth();
+    if (!auth) return;
+
+    seasonId = await getCurrentSeasonId();
+    if (!seasonId) return;
+
+    try {
+        const seasons = await getSeasons();
+        season = seasons.find(s => s.id === seasonId);
+
+        players = await apiGet('/api/auth/players');
+        castaways = await apiGet(`/api/seasons/${seasonId}/castaways`);
+        rosters = await apiGet(`/api/seasons/${seasonId}/rosters`);
+
+        // Build draft order (snake)
+        const playerIds = players.map(p => p.id);
+        const rounds = season.max_roster_size || 4;
+        draftOrder = generateSnakeOrder(playerIds, rounds);
+
+        // Figure out current pick number from existing draft picks
+        let totalPicks = 0;
+        for (const roster of rosters) {
+            totalPicks += roster.castaways.filter(c => c.pickup_type === 'draft').length;
+        }
+        currentPick = totalPicks;
+
+        renderDraft();
+
+        document.getElementById('draft-loading').classList.add('hidden');
+        document.getElementById('draft-content').classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('draft-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+});
+
+function getDraftedCastawayIds() {
+    const ids = new Set();
+    for (const roster of rosters) {
+        for (const entry of roster.castaways) {
+            // Count how many times each castaway is drafted
+            if (!ids.has(entry.castaway_id)) ids.add(entry.castaway_id);
+        }
+    }
+    return ids;
+}
+
+function getCastawayDraftCount(castawayId) {
+    let count = 0;
+    for (const roster of rosters) {
+        for (const entry of roster.castaways) {
+            if (entry.castaway_id === castawayId && entry.pickup_type === 'draft') count++;
+        }
+    }
+    return count;
+}
+
+function renderDraft() {
+    const auth = getAuth();
+    const isCommissioner = auth && auth.is_commissioner;
+
+    // Turn indicator
+    const turnDiv = document.getElementById('turn-indicator');
+    if (currentPick >= draftOrder.length) {
+        turnDiv.innerHTML = '<strong>Draft Complete!</strong>';
+    } else {
+        const nextPlayerId = draftOrder[currentPick];
+        const nextPlayer = players.find(p => p.id === nextPlayerId);
+        turnDiv.innerHTML = `Pick #${currentPick + 1} of ${draftOrder.length} &mdash; <strong>${nextPlayer ? nextPlayer.display_name : '?'}</strong>'s turn`;
+    }
+
+    // Draft board columns
+    const board = document.getElementById('draft-board');
+    let boardHtml = '';
+    for (const player of players) {
+        const playerRoster = rosters.find(r => r.fantasy_player_id === player.id);
+        const picks = playerRoster ? playerRoster.castaways.filter(c => c.pickup_type === 'draft') : [];
+
+        boardHtml += `<div class="draft-column"><h3>${player.display_name}</h3>`;
+        for (const pick of picks) {
+            boardHtml += `<div class="draft-pick">
+                <span class="pick-num">Pick #${pick.draft_position || '?'}</span><br>
+                <strong>${pick.castaway_name}</strong>
+            </div>`;
+        }
+        // Empty slots
+        const maxPicks = season.max_roster_size || 4;
+        for (let i = picks.length; i < maxPicks; i++) {
+            boardHtml += '<div class="draft-pick text-muted" style="border-style:dashed">Empty</div>';
+        }
+        boardHtml += '</div>';
+    }
+    board.innerHTML = boardHtml;
+
+    // Available castaways
+    const available = document.getElementById('available-castaways');
+    const maxDrafts = season.max_times_castaway_drafted || 2;
+    let availHtml = '';
+    for (const c of castaways) {
+        const draftCount = getCastawayDraftCount(c.id);
+        const isUnavailable = draftCount >= maxDrafts;
+        const draftedClass = isUnavailable ? 'drafted' : '';
+        const draftLabel = draftCount > 0 ? ` (${draftCount}x)` : '';
+
+        if (isCommissioner && !isUnavailable && currentPick < draftOrder.length) {
+            availHtml += `<div class="castaway-chip ${draftedClass}" onclick="makePick(${c.id})">${c.name}${draftLabel}</div>`;
+        } else {
+            availHtml += `<div class="castaway-chip ${draftedClass}">${c.name}${draftLabel}</div>`;
+        }
+    }
+    available.innerHTML = availHtml;
+}
+
+async function makePick(castawayId) {
+    if (currentPick >= draftOrder.length) return;
+
+    const alertBox = document.getElementById('draft-alert');
+    const playerId = draftOrder[currentPick];
+    const player = players.find(p => p.id === playerId);
+    const castaway = castaways.find(c => c.id === castawayId);
+
+    try {
+        await apiPost(`/api/seasons/${seasonId}/rosters/draft`, {
+            fantasy_player_id: playerId,
+            castaway_id: castawayId,
+            draft_position: currentPick + 1,
+        });
+
+        showAlert(alertBox, `${player.display_name} drafted ${castaway.name} with pick #${currentPick + 1}!`, 'success');
+
+        // Refresh rosters and re-render
+        rosters = await apiGet(`/api/seasons/${seasonId}/rosters`);
+        currentPick++;
+        renderDraft();
+    } catch (err) {
+        showAlert(alertBox, err.message);
+    }
+}
+</script>
+{% endblock %}
