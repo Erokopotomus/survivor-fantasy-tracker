@@ -9,6 +9,9 @@ from app.core.database import engine, Base
 from app.api import auth, seasons, castaways, episodes, rules, rosters, leaderboard, predictions
 from app.api import pages
 
+# Import all models so Base.metadata is populated for create_all
+import app.models.models  # noqa: F401
+
 settings = get_settings()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,9 +19,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.debug:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    # Always create tables on startup (idempotent — skips existing tables)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
 
