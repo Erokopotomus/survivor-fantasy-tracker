@@ -28,19 +28,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             html += `<div class="photo-initials" style="width:100px;height:100px;font-size:38px;border-color:${tribeColor};">${getInitials(detail.name)}</div>`;
         }
         html += `<div>
-                <h1>${detail.name}</h1>
-                <p class="text-muted">${detail.occupation || ''} ${detail.age ? '&middot; Age ' + detail.age : ''}</p>
+                <h1 style="font-size:1.6rem;">${detail.name}</h1>
+                <p style="font-family:'Almendra',serif;font-style:italic;color:var(--mud);">${detail.occupation || ''} ${detail.age ? '&middot; Age ' + detail.age : ''}</p>
                 <p style="margin-top:0.25rem;">
-                    <span style="color:${tribeColor};font-weight:600;">${detail.starting_tribe || ''}</span>
-                    ${detail.current_tribe && detail.current_tribe !== detail.starting_tribe ? ' &rarr; <span style="color:' + getTribeColor(detail.current_tribe) + ';font-weight:600;">' + detail.current_tribe + '</span>' : ''}
+                    <span style="color:${tribeColor};font-family:'Cinzel',serif;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;">${detail.starting_tribe || ''}</span>
+                    ${detail.current_tribe && detail.current_tribe !== detail.starting_tribe ? ' &rarr; <span style="color:' + getTribeColor(detail.current_tribe) + ';font-family:Cinzel,serif;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;">' + detail.current_tribe + '</span>' : ''}
                     &nbsp; ${statusBadge(detail.status)}
-                    <span class="score" style="font-size:1.3rem;margin-left:0.5rem">${detail.total_score.toFixed(2)} pts</span>
+                    <span class="score" style="font-size:1.3rem;margin-left:0.5rem;color:var(--torch-yellow);">${detail.total_score.toFixed(2)} pts</span>
                 </p>
             </div>
         </div>`;
 
         if (detail.drafted_by.length > 0) {
-            html += `<p class="text-muted mb-2">Drafted by: <strong>${detail.drafted_by.join(', ')}</strong></p>`;
+            const draftedNames = detail.drafted_by.map(name => {
+                const pc = getPlayerColor(name);
+                return '<strong style="color:' + pc.accent + '">' + name + '</strong>';
+            }).join(', ');
+            html += `<p style="color:var(--mud);margin-bottom:1rem;">Drafted by: ${draftedNames}</p>`;
         }
 
         if (detail.episode_scores.length > 0) {
@@ -52,15 +56,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
                     .join(', ');
                 html += `<tr>
-                    <td>Ep ${ep.episode_number}</td>
-                    <td>${ep.episode_title || '-'}</td>
+                    <td style="font-family:'Cinzel',serif;font-size:0.8rem;">Ep ${ep.episode_number}</td>
+                    <td style="font-family:'Almendra',serif;">${ep.episode_title || '-'}</td>
                     <td>${formatScore(ep.calculated_score)}</td>
-                    <td class="text-muted" style="font-size:0.8rem">${events || '-'}</td>
+                    <td class="text-muted" style="font-size:0.78rem">${events || '-'}</td>
                 </tr>`;
             }
             html += '</tbody></table></div>';
         } else {
-            html += '<p class="text-muted">No episode scores yet.</p>';
+            html += '<p class="text-muted" style="font-family:\'Almendra\',serif;font-style:italic;">No episode scores yet.</p>';
         }
 
         container.innerHTML = html;

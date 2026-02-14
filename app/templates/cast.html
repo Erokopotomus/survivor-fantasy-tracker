@@ -4,7 +4,7 @@
 <div id="page-content">
     <div class="flex-between mb-2">
         <h1>Cast</h1>
-        <div id="season-info" class="text-muted"></div>
+        <div id="season-info" class="text-muted" style="font-family:'Almendra',serif;font-style:italic;"></div>
     </div>
     <div id="cast-loading" class="loading"><span class="spinner"></span> Loading...</div>
     <div id="cast-content" class="hidden"></div>
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById('cast-content');
 
         if (castaways.length === 0) {
-            container.innerHTML = '<p class="text-muted">No castaways added yet.</p>';
+            container.innerHTML = '<p class="text-muted" style="font-family:\'Almendra\',serif;font-style:italic;">No castaways added yet.</p>';
         } else {
             // Group by starting_tribe
             const tribes = {};
@@ -47,11 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (const [tribe, members] of Object.entries(tribes)) {
                 const color = getTribeColor(tribe);
                 html += `<div class="tribe-section">`;
-                html += `<div class="tribe-header" style="background:${color};">${tribe} Tribe</div>`;
+                html += `<div class="tribe-header" style="background:linear-gradient(135deg, ${color}, ${color}88);">${tribe} Tribe</div>`;
                 html += `<div class="cast-grid">`;
                 for (const c of members) {
                     const isEliminated = c.status !== 'active';
-                    html += `<a href="/castaway/${c.id}" class="cast-card" style="border-color:${color}${isEliminated ? ';opacity:0.6' : ''}">`;
+                    html += `<a href="/castaway/${c.id}" class="cast-card" style="border-color:${color}66${isEliminated ? ';opacity:0.4' : ''}">`;
                     html += `<div class="photo-wrapper">${renderPhoto(c.photo_url, c.name, 80)}</div>`;
                     html += `<div class="cast-name">${c.name}</div>`;
                     html += `<div class="cast-occupation">${c.occupation || ''}</div>`;

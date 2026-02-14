@@ -127,11 +127,23 @@ async function populateSeasonSelector() {
 
 // === Tribe Helpers ===
 const TRIBE_COLORS = {
-    'Uli': '#e53e3e',
-    'Kele': '#3b82f6',
-    'Hina': '#eab308',
-    'Lewatu': '#8b5cf6',
+    'Uli': '#c0392b',
+    'Kele': '#2a4a7f',
+    'Hina': '#f5b731',
+    'Lewatu': '#5c3a6e',
 };
+
+// === Player Color Helpers ===
+const PLAYER_COLORS = {
+    'Eric':   { accent: '#2dd4a8', bg: 'rgba(10,35,28,0.9)' },
+    'Calvin': { accent: '#e8751a', bg: 'rgba(40,25,12,0.9)' },
+    'Jake':   { accent: '#a78bfa', bg: 'rgba(28,18,38,0.9)' },
+    'Josh':   { accent: '#f87171', bg: 'rgba(38,14,14,0.9)' },
+};
+
+function getPlayerColor(name) {
+    return PLAYER_COLORS[name] || { accent: '#c4a265', bg: 'rgba(18,26,11,0.9)' };
+}
 
 function getTribeColor(tribe) {
     return TRIBE_COLORS[tribe] || '#6b7280';
