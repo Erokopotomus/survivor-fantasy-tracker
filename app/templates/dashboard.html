@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!auth) return;
 
     try {
+        await populateSeasonSelector();
         const seasonId = await getCurrentSeasonId();
         if (!seasonId) {
             document.getElementById('leaderboard-loading').innerHTML = '<p class="text-muted">No seasons found.</p>';
