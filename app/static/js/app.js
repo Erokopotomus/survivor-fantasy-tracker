@@ -125,6 +125,114 @@ async function populateSeasonSelector() {
     }
 }
 
+// === Tribe Helpers ===
+const TRIBE_COLORS = {
+    'Uli': '#e53e3e',
+    'Kele': '#3b82f6',
+    'Hina': '#eab308',
+    'Lewatu': '#8b5cf6',
+};
+
+function getTribeColor(tribe) {
+    return TRIBE_COLORS[tribe] || '#6b7280';
+}
+
+function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function renderPhoto(photoUrl, name, size = 64) {
+    if (photoUrl) {
+        return `<img src="${photoUrl}" alt="${name}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;">`;
+    }
+    const initials = getInitials(name);
+    return `<div class="photo-initials" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;">${initials}</div>`;
+}
+
+async function uploadPhotoModal(castawayId, seasonId, onSuccess) {
+    // Remove existing modal
+    const existing = document.getElementById('photo-upload-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'photo-upload-modal';
+    modal.className = 'upload-modal-overlay';
+    modal.innerHTML = `
+        <div class="upload-modal">
+            <div class="upload-modal-header">
+                <h3>Upload Photo</h3>
+                <button class="btn btn-sm btn-outline" onclick="this.closest('.upload-modal-overlay').remove()">X</button>
+            </div>
+            <div class="upload-modal-body">
+                <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/webp">
+                <p class="text-muted" style="font-size:0.75rem;margin-top:0.5rem;">Max 2 MB. JPEG, PNG, or WebP.</p>
+                <div id="upload-preview" class="hidden" style="margin-top:1rem;text-align:center;"></div>
+                <div id="upload-error" class="hidden alert alert-error" style="margin-top:0.5rem;"></div>
+            </div>
+            <div class="upload-modal-footer">
+                <button class="btn btn-outline" onclick="this.closest('.upload-modal-overlay').remove()">Cancel</button>
+                <button class="btn" id="upload-save-btn" disabled>Save Photo</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    let dataUri = null;
+    const fileInput = modal.querySelector('#photo-file-input');
+    const saveBtn = modal.querySelector('#upload-save-btn');
+    const preview = modal.querySelector('#upload-preview');
+    const errorDiv = modal.querySelector('#upload-error');
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        errorDiv.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const auth = getAuth();
+            const resp = await fetch('/api/uploads/image-to-base64', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${auth.access_token}` },
+                body: formData,
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: 'Upload failed' }));
+                throw new Error(err.detail);
+            }
+            const result = await resp.json();
+            dataUri = result.data_uri;
+            preview.innerHTML = `<img src="${dataUri}" style="max-width:150px;max-height:150px;border-radius:8px;">`;
+            preview.classList.remove('hidden');
+            saveBtn.disabled = false;
+        } catch (err) {
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('hidden');
+            saveBtn.disabled = true;
+        }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        if (!dataUri) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        try {
+            await apiPatch(`/api/seasons/${seasonId}/castaways/${castawayId}`, { photo_url: dataUri });
+            modal.remove();
+            if (onSuccess) onSuccess();
+        } catch (err) {
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('hidden');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Photo';
+        }
+    });
+}
+
 // === UI Helpers ===
 function showAlert(container, message, type = 'error') {
     const div = document.createElement('div');

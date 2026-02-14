@@ -35,21 +35,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (lb.entries.length === 0) {
             container.innerHTML = '<p class="text-muted">No scores yet. Draft some castaways and start scoring episodes!</p>';
         } else {
+            // Condensed leaderboard table
             let html = '<div class="card">';
-            html += '<table><thead><tr><th>Rank</th><th>Player</th><th>Castaways</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
+            html += '<table><thead><tr><th>Rank</th><th>Player</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
             for (const entry of lb.entries) {
-                const castaways = entry.roster_breakdown.map(c =>
-                    `${c.castaway_name} (${c.total_score.toFixed(2)})`
-                ).join(', ');
                 html += `<tr>
                     <td class="${rankClass(entry.rank)}">#${entry.rank}</td>
                     <td><strong>${entry.player_name}</strong>${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</td>
-                    <td class="text-muted" style="font-size:0.8rem">${castaways || 'No picks yet'}</td>
                     <td>${formatScore(entry.prediction_bonus)}</td>
                     <td>${formatScore(entry.grand_total)}</td>
                 </tr>`;
             }
             html += '</tbody></table></div>';
+
+            // Roster cards
+            html += '<h2 class="mt-2 mb-1">Rosters</h2>';
+            html += '<div class="roster-cards">';
+            for (const entry of lb.entries) {
+                html += `<div class="roster-card">`;
+                html += `<div class="roster-card-header">`;
+                html += `<span class="player-name">${entry.player_name}${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</span>`;
+                html += `<span class="player-total">${entry.grand_total.toFixed(2)}</span>`;
+                html += `</div>`;
+
+                for (const c of entry.roster_breakdown) {
+                    const isEliminated = c.status && c.status !== 'active';
+                    html += `<a href="/castaway/${c.castaway_id}" class="roster-castaway${isEliminated ? ' eliminated' : ''}">`;
+                    html += renderPhoto(c.photo_url, c.castaway_name, 40);
+                    html += `<div class="castaway-info">`;
+                    html += `<div class="name">${c.castaway_name}</div>`;
+                    html += `<div class="pickup-type">${c.pickup_type}${isEliminated ? ' &middot; ' + c.status : ''}</div>`;
+                    html += `</div>`;
+                    html += `<div class="castaway-score">${c.total_score.toFixed(2)}</div>`;
+                    html += `</a>`;
+                }
+
+                if (entry.prediction_bonus > 0) {
+                    html += `<div style="text-align:right;padding-top:0.5rem;font-size:0.8rem;color:var(--text-muted);">Prediction bonus: +${entry.prediction_bonus.toFixed(2)}</div>`;
+                }
+                html += `</div>`;
+            }
+            html += '</div>';
+
             container.innerHTML = html;
         }
 

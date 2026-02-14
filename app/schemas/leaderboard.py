@@ -6,6 +6,8 @@ class CastawayBreakdownItem(BaseModel):
     castaway_name: str
     pickup_type: str
     total_score: float
+    photo_url: str | None = None
+    status: str = "active"
 
 
 class LeaderboardEntry(BaseModel):

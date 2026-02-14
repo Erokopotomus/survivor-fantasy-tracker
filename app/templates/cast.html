@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Cast - Survivor Fantasy{% endblock %}
+{% block content %}
+<div id="page-content">
+    <div class="flex-between mb-2">
+        <h1>Cast</h1>
+        <div id="season-info" class="text-muted"></div>
+    </div>
+    <div id="cast-loading" class="loading"><span class="spinner"></span> Loading...</div>
+    <div id="cast-content" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = requireAuth();
+    if (!auth) return;
+
+    try {
+        await populateSeasonSelector();
+        const seasonId = await getCurrentSeasonId();
+        if (!seasonId) {
+            document.getElementById('cast-loading').innerHTML = '<p class="text-muted">No seasons found.</p>';
+            return;
+        }
+
+        const seasons = await getSeasons();
+        const season = seasons.find(s => s.id === seasonId);
+        document.getElementById('season-info').textContent = season ? season.name : '';
+
+        const castaways = await apiGet(`/api/seasons/${seasonId}/castaways`);
+        const container = document.getElementById('cast-content');
+
+        if (castaways.length === 0) {
+            container.innerHTML = '<p class="text-muted">No castaways added yet.</p>';
+        } else {
+            // Group by starting_tribe
+            const tribes = {};
+            for (const c of castaways) {
+                const tribe = c.starting_tribe || 'Unknown';
+                if (!tribes[tribe]) tribes[tribe] = [];
+                tribes[tribe].push(c);
+            }
+
+            let html = '';
+            for (const [tribe, members] of Object.entries(tribes)) {
+                const color = getTribeColor(tribe);
+                html += `<div class="tribe-section">`;
+                html += `<div class="tribe-header" style="background:${color};">${tribe} Tribe</div>`;
+                html += `<div class="cast-grid">`;
+                for (const c of members) {
+                    const isEliminated = c.status !== 'active';
+                    html += `<a href="/castaway/${c.id}" class="cast-card" style="border-color:${color}${isEliminated ? ';opacity:0.6' : ''}">`;
+                    html += `<div class="photo-wrapper">${renderPhoto(c.photo_url, c.name, 80)}</div>`;
+                    html += `<div class="cast-name">${c.name}</div>`;
+                    html += `<div class="cast-occupation">${c.occupation || ''}</div>`;
+                    if (isEliminated) html += `<div style="margin-top:0.25rem">${statusBadge(c.status)}</div>`;
+                    if (auth.is_commissioner) {
+                        html += `<div class="cast-card-actions"><button class="btn btn-sm btn-outline" onclick="event.preventDefault();uploadPhotoModal(${c.id},${seasonId},()=>location.reload())">Edit Photo</button></div>`;
+                    }
+                    html += `</a>`;
+                }
+                html += `</div></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        document.getElementById('cast-loading').classList.add('hidden');
+        container.classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('cast-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+});
+</script>
+{% endblock %}

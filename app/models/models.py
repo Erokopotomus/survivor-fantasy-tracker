@@ -52,6 +52,7 @@ class Season(Base):
     max_roster_size = Column(Integer, default=4)
     free_agent_pickup_limit = Column(Integer, default=1)  # picks after first boot
     max_times_castaway_drafted = Column(Integer, default=2)  # can't be on more than X rosters
+    logo_url = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -73,7 +74,7 @@ class Castaway(Base):
     starting_tribe = Column(String(100))
     current_tribe = Column(String(100))
     bio = Column(Text)
-    photo_url = Column(String(500))
+    photo_url = Column(Text)
     status = Column(SAEnum(CastawayStatus), default=CastawayStatus.ACTIVE, nullable=False)
     final_placement = Column(Integer)  # 1 = winner, 2 = runner-up, etc.
 

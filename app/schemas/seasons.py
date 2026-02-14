@@ -30,6 +30,7 @@ class SeasonResponse(BaseModel):
     max_roster_size: int
     free_agent_pickup_limit: int
     max_times_castaway_drafted: int
+    logo_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

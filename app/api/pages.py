@@ -19,6 +19,11 @@ async def dashboard_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
+@router.get("/cast", response_class=HTMLResponse)
+async def cast_page(request: Request):
+    return templates.TemplateResponse("cast.html", {"request": request})
+
+
 @router.get("/scoring", response_class=HTMLResponse)
 async def scoring_page(request: Request):
     return templates.TemplateResponse("scoring.html", {"request": request})

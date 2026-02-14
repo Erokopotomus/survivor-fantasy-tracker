@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Survivor Fantasy Tracker{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=2">
+    <link rel="stylesheet" href="/static/css/style.css?v=3">
 </head>
 <body>
     <nav id="main-nav" style="display: none;">
         <div class="nav-brand">Survivor Fantasy</div>
         <div class="nav-links">
             <a href="/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="/cast" class="nav-link" data-page="cast">Cast</a>
             <a href="/episode-scores" class="nav-link" data-page="episode-scores">Episode Scores</a>
             <a href="/rosters" class="nav-link" data-page="rosters">Rosters</a>
             <a href="/draft" class="nav-link" data-page="draft">Draft</a>
@@ -28,7 +29,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script src="/static/js/app.js?v=2"></script>
+    <script src="/static/js/app.js?v=3"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
