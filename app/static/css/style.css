@@ -77,6 +77,21 @@ nav {
     white-space: nowrap;
 }
 
+.season-select {
+    width: auto;
+    min-width: 120px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.season-select:hover { border-color: var(--accent); }
+
 /* === Container === */
 .container {
     max-width: 1200px;

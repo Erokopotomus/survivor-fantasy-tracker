@@ -79,6 +79,7 @@ function initNav() {
 }
 
 // === Season Helpers ===
+const SEASON_KEY = 'survivor_selected_season';
 let _currentSeasonId = null;
 let _seasons = null;
 
@@ -91,8 +92,37 @@ async function getCurrentSeasonId() {
     if (_currentSeasonId) return _currentSeasonId;
     const seasons = await getSeasons();
     if (seasons.length === 0) return null;
-    _currentSeasonId = seasons[0].id;
+
+    // Check localStorage for saved selection
+    const saved = localStorage.getItem(SEASON_KEY);
+    if (saved && seasons.find(s => s.id === parseInt(saved))) {
+        _currentSeasonId = parseInt(saved);
+    } else {
+        _currentSeasonId = seasons[0].id;
+    }
     return _currentSeasonId;
+}
+
+function onSeasonChange(seasonId) {
+    localStorage.setItem(SEASON_KEY, seasonId);
+    _currentSeasonId = parseInt(seasonId);
+    _seasons = null;
+    window.location.reload();
+}
+
+async function populateSeasonSelector() {
+    const selector = document.getElementById('season-selector');
+    if (!selector) return;
+    const seasons = await getSeasons();
+    const currentId = await getCurrentSeasonId();
+    selector.innerHTML = '';
+    for (const s of seasons) {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        if (s.id === currentId) opt.selected = true;
+        selector.appendChild(opt);
+    }
 }
 
 // === UI Helpers ===
@@ -126,4 +156,5 @@ function statusBadge(status) {
 // === On Load ===
 document.addEventListener('DOMContentLoaded', () => {
     initNav();
+    if (getAuth()) populateSeasonSelector();
 });

@@ -18,6 +18,7 @@
             <a href="/scoring" class="nav-link commissioner-only" data-page="scoring">Score Episode</a>
         </div>
         <div class="nav-user">
+            <select id="season-selector" class="season-select" onchange="onSeasonChange(this.value)"></select>
             <span id="nav-username"></span>
             <button onclick="logout()" class="btn btn-sm">Logout</button>
         </div>
