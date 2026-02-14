@@ -138,6 +138,14 @@ async def run_seed():
     return {"status": "seeded", "details": results}
 
 
+@app.post("/api/seed-s49")
+async def run_seed_s49():
+    """Seed Season 49 with complete cast, episodes, scores, and fantasy rosters."""
+    from app.scripts.seed_s49 import seed_s49
+    results = await seed_s49()
+    return {"status": "seeded", "details": results}
+
+
 @app.get("/api/debug/tables")
 async def debug_tables():
     """Debug endpoint — list tables in the database."""
