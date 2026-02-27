@@ -1,7 +1,11 @@
+import logging
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.models import (
     Episode, Season, SeasonStatus, Castaway, CastawayStatus,
@@ -11,10 +15,13 @@ from app.schemas.episodes import (
     EpisodeCreate, EpisodeUpdate, EpisodeResponse,
     EpisodeScoreSubmit, EpisodeScoreResponse, CastawayScoreResult,
     ScoringTemplateResponse, TemplateRuleItem, TemplateCastawayItem,
+    AiScoringRequest, AiScoringResponse,
 )
 from app.api.deps import get_current_user, require_commissioner
 from app.models.models import FantasyPlayer
 from app.services.scoring_engine import score_episode_event, get_active_rules
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/seasons/{season_id}/episodes", tags=["Episodes"])
 
@@ -223,3 +230,41 @@ async def delete_episode(
 ):
     episode = await _get_episode_or_404(db, season_id, episode_id)
     await db.delete(episode)
+
+
+@router.post("/{episode_id}/ai-suggest", response_model=AiScoringResponse)
+async def ai_scoring_suggest(
+    season_id: int,
+    episode_id: int,
+    body: AiScoringRequest,
+    db: AsyncSession = Depends(get_db),
+    _: FantasyPlayer = Depends(require_commissioner),
+):
+    """Use Claude to generate scoring suggestions for an episode."""
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="ANTHROPIC_API_KEY not configured. Add it to .env or Railway env vars.",
+        )
+
+    await _get_season_or_404(db, season_id)
+    await _get_episode_or_404(db, season_id, episode_id)
+
+    from app.services.ai_scoring import generate_scoring_suggestions
+
+    try:
+        result = await generate_scoring_suggestions(
+            db, season_id, episode_id, body.recap_text
+        )
+        return result
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AI request timed out. Try again.")
+    except httpx.HTTPStatusError as e:
+        logger.error("Claude API error: %s %s", e.response.status_code, e.response.text[:300])
+        raise HTTPException(
+            status_code=502,
+            detail=f"Claude API error ({e.response.status_code}). Check your API key.",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))

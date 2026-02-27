@@ -408,6 +408,28 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     z-index: 5;
 }
 
+/* AI Assist highlights */
+.ai-highlight {
+    border: 2px solid #d4930d !important;
+    border-radius: 4px;
+    position: relative;
+}
+.ai-highlight:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    color: #d4930d;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 20;
+    pointer-events: none;
+}
+
 /* === Leaderboard Ranks === */
 .rank-1 { color: var(--torch-yellow); font-weight: 700; }
 .rank-2 { color: var(--sand); font-weight: 600; }

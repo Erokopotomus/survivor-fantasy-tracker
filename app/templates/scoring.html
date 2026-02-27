@@ -149,8 +149,134 @@ function renderGrid(template) {
     }
 
     html += '</tbody></table></div>';
-    html += '<div class="mt-2"><button class="btn" onclick="submitScores()" style="width:100%;padding:0.75rem;font-size:1rem">Submit Scores</button></div>';
+
+    // AI Assist + Submit buttons
+    html += `<div style="display:flex;gap:1rem;margin-top:1rem;">
+        <button class="btn" onclick="showAiPanel()" style="flex:1;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">
+            <span style="margin-right:0.5rem;">&#9733;</span> AI Assist
+        </button>
+        <button class="btn" onclick="submitScores()" style="flex:2;padding:0.75rem;font-size:1rem">Submit Scores</button>
+    </div>`;
+
+    // AI recap panel (hidden by default)
+    html += `<div id="ai-recap-panel" class="card hidden" style="margin-top:1rem;border:1px solid #7c3aed;">
+        <h3 class="card-header" style="color:#a78bfa;">AI Scoring Assistant</h3>
+        <div class="form-group">
+            <label>Episode Recap (optional)</label>
+            <textarea id="ai-recap-text" rows="5" placeholder="Paste an episode recap for better accuracy, or leave blank for best-guess scoring based on typical Survivor patterns..." style="width:100%;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:0.75rem;align-items:center;">
+            <button class="btn" onclick="runAiScoring()" id="ai-generate-btn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">Generate Suggestions</button>
+            <button class="btn btn-outline" onclick="hideAiPanel()">Cancel</button>
+            <span id="ai-loading" class="hidden"><span class="spinner"></span> Asking Claude...</span>
+        </div>
+    </div>`;
+
+    // AI notes card (hidden until results come back)
+    html += `<div id="ai-notes-card" class="card hidden" style="margin-top:1rem;border:1px solid #7c3aed;">
+        <h3 class="card-header" style="color:#a78bfa;">AI Notes</h3>
+        <div id="ai-notes-content"></div>
+    </div>`;
+
     container.innerHTML = html;
+}
+
+function showAiPanel() {
+    document.getElementById('ai-recap-panel').classList.remove('hidden');
+}
+
+function hideAiPanel() {
+    document.getElementById('ai-recap-panel').classList.add('hidden');
+}
+
+async function runAiScoring() {
+    const epId = document.getElementById('episode-select').value;
+    if (!epId) return;
+
+    const alertBox = document.getElementById('scoring-alert');
+    const recapText = document.getElementById('ai-recap-text').value;
+    const loading = document.getElementById('ai-loading');
+    const genBtn = document.getElementById('ai-generate-btn');
+
+    genBtn.disabled = true;
+    loading.classList.remove('hidden');
+
+    try {
+        const result = await apiPost(
+            `/api/seasons/${currentSeasonId}/episodes/${epId}/ai-suggest`,
+            { recap_text: recapText || null }
+        );
+        populateGridFromAi(result.suggestions);
+        showAiNotes(result);
+        hideAiPanel();
+        showAlert(alertBox, `AI filled ${result.suggestions.length} castaways. Review and adjust before submitting.`, 'success');
+    } catch (err) {
+        showAlert(alertBox, `AI Assist error: ${err.message}`);
+    } finally {
+        genBtn.disabled = false;
+        loading.classList.add('hidden');
+    }
+}
+
+function populateGridFromAi(suggestions) {
+    // Clear any previous AI highlights
+    document.querySelectorAll('.ai-highlight').forEach(el => {
+        el.classList.remove('ai-highlight');
+        el.removeAttribute('title');
+    });
+
+    for (const s of suggestions) {
+        const row = document.querySelector(`tr[data-castaway-id="${s.castaway_id}"]`);
+        if (!row) continue;
+
+        for (const [ruleKey, value] of Object.entries(s.event_data)) {
+            const input = row.querySelector(`[data-rule="${ruleKey}"]`);
+            if (!input) continue;
+
+            if (input.tagName === 'SELECT') {
+                input.value = value ? '1' : '0';
+            } else {
+                input.value = value;
+            }
+
+            // Highlight low-confidence cells with gold border
+            const note = s.confidence_notes[ruleKey];
+            if (note) {
+                const cell = input.closest('td');
+                cell.classList.add('ai-highlight');
+                cell.title = note;
+            }
+        }
+    }
+}
+
+function showAiNotes(result) {
+    const card = document.getElementById('ai-notes-card');
+    const content = document.getElementById('ai-notes-content');
+
+    let html = '';
+    if (result.episode_summary) {
+        html += `<p><strong>Summary:</strong> ${escapeHtml(result.episode_summary)}</p>`;
+    }
+    if (result.eliminated && result.eliminated.length > 0) {
+        html += `<p><strong>Eliminated:</strong> ${result.eliminated.map(escapeHtml).join(', ')}</p>`;
+    }
+    if (result.notes) {
+        html += `<p><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
+    }
+    html += `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
+        <span style="display:inline-block;width:12px;height:12px;border:2px solid #d4930d;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>
+        Gold-bordered cells = low confidence. Verify before submitting.
+    </p>`;
+
+    content.innerHTML = html;
+    card.classList.remove('hidden');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 async function submitScores() {

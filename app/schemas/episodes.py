@@ -77,3 +77,25 @@ class ScoringTemplateResponse(BaseModel):
     episode_number: int
     rules: list[TemplateRuleItem]
     castaways: list[TemplateCastawayItem]
+
+
+# --- AI Scoring ---
+
+class AiScoringRequest(BaseModel):
+    recap_text: str | None = None
+
+
+class AiCastawaySuggestion(BaseModel):
+    castaway_id: int
+    castaway_name: str
+    event_data: dict
+    confidence_notes: dict = {}
+
+
+class AiScoringResponse(BaseModel):
+    episode_id: int
+    episode_number: int
+    suggestions: list[AiCastawaySuggestion]
+    episode_summary: str = ""
+    eliminated: list[str] = []
+    notes: str = ""
