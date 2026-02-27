@@ -47,6 +47,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             html += `<p style="color:var(--mud);margin-bottom:1rem;">Drafted by: ${draftedNames}</p>`;
         }
 
+        if (detail.bio) {
+            html += `<div class="card" style="margin-bottom:1rem;">
+                <div class="card-header">About</div>
+                <p style="padding:0.75rem 1rem;color:var(--parchment);font-family:'Almendra',serif;font-size:0.95rem;line-height:1.6;">${detail.bio}</p>
+            </div>`;
+        }
+
         if (detail.episode_scores.length > 0) {
             html += '<div class="card"><div class="card-header">Episode Breakdown</div>';
             html += '<table><thead><tr><th>Episode</th><th>Title</th><th>Score</th><th>Events</th></tr></thead><tbody>';

@@ -295,6 +295,141 @@ async def seed_s50_cast():
     }
 
 
+@app.post("/api/seed-s50-photos-bios")
+async def seed_s50_photos_bios():
+    """One-time endpoint to populate S50 castaway photo URLs and bios."""
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.models import Castaway, Season
+
+    S50_DATA = {
+        "Cirie Fields": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/5/5c/S50_Cirie_Fields.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Cirie Fields has played five previous seasons: Panama (4th), Micronesia (3rd), Heroes vs. Villains (17th), Game Changers (6th), and Australia v The World (4th). Widely regarded as one of the greatest strategic and social players in franchise history, she is the woman who got up off the couch and played Survivor.",
+        },
+        "Ozzy Lusth": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/f/f6/S50_Ozzy_Lusth.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Ozzy Lusth competed in four seasons: Cook Islands (runner-up), Micronesia (9th), South Pacific (4th), and Game Changers (12th). He is renowned for his exceptional challenge dominance, winning five of six individual immunities in Cook Islands. One of the most dominant physical competitors in Survivor history.",
+        },
+        "Christian Hubicki": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/8/89/S50_Christian_Hubicki.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Christian Hubicki competed in David vs. Goliath (S37), finishing 7th after becoming a massive target for his strategic acumen and likability. A robotics professor turned fan-favorite, he used Hidden Immunity Idols to extend his game and became one of the most beloved new-era players.",
+        },
+        "Rick Devens": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/4/47/S50_Rick_Devens.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Rick Devens competed in Edge of Extinction (S38), finishing 4th after being voted out early and returning via the Edge twist. He won four individual immunity challenges and became one of the most dynamic post-merge players in modern Survivor.",
+        },
+        "Jenna Lewis-Dougherty": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/e/e4/S50_Jenna_Lewis-Dougherty.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Jenna Lewis competed in Borneo (S1, 8th place) and All-Stars (S8, 3rd place), making her one of the original Survivor players. She orchestrated key eliminations of former winners in All-Stars and is one of the earliest-era players to return for S50.",
+        },
+        "Emily Flippen": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/3/33/S50_Emily_Flippen.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Emily Flippen competed in Survivor 45, finishing 7th after overcoming an early social struggle on her starting tribe. She rehabilitated her image with the help of unlikely ally Kaleb Gebrewold and integrated with the dominant alliance before being blindsided.",
+        },
+        "Savannah Louie": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/9/91/S50_Savannah_Louie.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Savannah Louie won Survivor 49 as Sole Survivor through dominant individual immunity performance, winning four challenges to tie the female record. She is the first Sole Survivor to compete immediately on the following season, making her S50 appearance historically unique.",
+        },
+        "Joe Hunter": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/3/3e/S50_Joe_Hunter.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Joe Hunter competed in Survivor 48, finishing as second runner-up (3rd place) with an impressive 11 challenge wins. He was recognized as one of the physically strongest players on S48, known for his loyalty and emotional gameplay.",
+        },
+        'Benjamin "Coach" Wade': {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/a/a8/S50_Coach_Wade.jpg/revision/latest/scale-to-width-down/250",
+            "bio": 'Benjamin "Coach" Wade competed in three seasons: Tocantins (5th), Heroes vs. Villains (12th), and South Pacific (runner-up). Known as the Dragon Slayer, he is one of the franchise\'s most polarizing and entertaining characters, famous for his stories, meditation, and unshakable self-confidence.',
+        },
+        "Mike White": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/a/ad/S50_Mike_White.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Mike White competed in David vs. Goliath (S37), finishing as runner-up after orchestrating several late-game blindsides. Outside of Survivor, he is a successful Hollywood writer/producer known for School of Rock, Enlightened, and The White Lotus.",
+        },
+        "Chrissy Hofbeck": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/b/b3/S50_Chrissy_Hofbeck.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Chrissy Hofbeck competed in Heroes vs. Healers vs. Hustlers (S35), finishing as runner-up in a 5-2-1 jury vote. She demonstrated impressive challenge prowess by winning four individual immunity competitions, tying the record for most wins by a female in a single season.",
+        },
+        "Charlie Davis": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/8/84/S50_Charlie_Davis.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Charlie Davis competed in Survivor 46, forming a dominant strategic partnership with Maria Shrime Gonzalez that controlled the merged tribe. He reached the Final Three but finished as runner-up in a 5-3-0 jury vote.",
+        },
+        "Tiffany Ervin": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/e/e0/S50_Tiffany_Nicole_Ervin.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Tiffany Nicole Ervin competed in Survivor 46, finishing 8th after being blindsided when she declined to play her Hidden Immunity Idol. She was a key member of the Yanu alliance and voted for ally Kenzie Petty to win in a 5-3-0 jury vote.",
+        },
+        "Jonathan Young": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/2/2c/S50_Jonathan_Young.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Jonathan Young competed in Survivor 42, finishing 4th after losing a fire-making challenge to eventual winner Mike Turner. He was recognized as one of the series' most dominant physical challenge performers with 9 total challenge wins, becoming an instant fan favorite.",
+        },
+        "Dee Valladares": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/2/2b/S50_Dee_Valladares.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Dee Valladares won Survivor 45 as Sole Survivor, orchestrating the dominant Reba Four alliance and reaching Final Tribal Council with strong social, strategic, and physical gameplay. She is regarded as one of the most dominant winners in the modern era.",
+        },
+        "Kamilla Karthigesu": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/e/e9/S50_Kamilla_Karthigesu.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Kamilla Karthigesu competed in Survivor 48, finishing 4th after losing a fire-making challenge. She won two individual immunity challenges and orchestrated several pivotal blindsides through her strategic gameplay and alliance work.",
+        },
+        "Colby Donaldson": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/8/82/S50_Colby_Donaldson.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Colby Donaldson competed in three seasons: The Australian Outback (runner-up), All-Stars (12th), and Heroes vs. Villains (5th). He is the series' original hero, known for his dominant challenge performance in Season 2 where he won five individual immunity challenges.",
+        },
+        "Stephenie LaGrossa Kendrick": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/f/f5/S50_Stephenie_LaGrossa_Kendrick.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Stephenie LaGrossa competed in three seasons: Palau (7th), Guatemala (runner-up), and Heroes vs. Villains (19th). She earned iconic status as the last Ulong member standing in Palau, becoming one of the most memorable and beloved players in franchise history.",
+        },
+        "Aubry Bracco": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/7/73/S50_Aubry_Bracco.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Aubry Bracco competed in three seasons: Kaoh Rong (runner-up), Game Changers (5th), and Edge of Extinction (16th). She emerged as a major strategic force in her debut season and remains regarded as a standout modern Survivor player.",
+        },
+        "Angelina Keeley": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/0/00/S50_Angelina_Keeley.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Angelina Keeley competed in David vs. Goliath (S37), finishing as second runner-up after lasting all 39 days. She is best known for her iconic moments including negotiating for rice at an immunity challenge and her infamous request for a departing contestant's jacket.",
+        },
+        "Genevieve Mushaluk": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/8/82/S50_Genevieve_Mushaluk.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Genevieve Mushaluk competed in Survivor 47, finishing 5th after establishing herself as a sharp strategic player who orchestrated several key blindsides. She is notable as the first Canadian resident to compete in multiple Survivor seasons.",
+        },
+        "Kyle Fraser": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/d/db/S50_Kyle_Fraser.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Kyle Fraser won Survivor 48 as Sole Survivor with a 5-2-1 jury vote. A music attorney from New York, he demonstrated strong strategic and social gameplay throughout his winning season.",
+        },
+        "Q Burdette": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/f/f9/S50_Q_Burdette.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Q Burdette competed in Survivor 46, finishing 6th after being blindsided while holding a Hidden Immunity Idol. Known for his intense personality, he famously requested elimination at the final ten before becoming a strategic smokescreen for three consecutive blindsides.",
+        },
+        "Rizo Velovic": {
+            "photo_url": "https://static.wikia.nocookie.net/survivor/images/8/8b/S50_Rizo_Velovic.jpg/revision/latest/scale-to-width-down/250",
+            "bio": "Rizo Velovic competed in Survivor 49, finishing 4th after losing a fire-making challenge to Savannah Louie. He wielded a Hidden Immunity Idol effectively to navigate the merge and reach the final four. He is the first contestant of Albanian descent to appear on Survivor.",
+        },
+    }
+
+    results = []
+    async with AsyncSessionLocal() as db:
+        season_result = await db.execute(
+            select(Season).where(Season.season_number == 50)
+        )
+        season = season_result.scalar_one_or_none()
+        if not season:
+            return {"status": "error", "details": ["Season 50 not found. Run /api/seed first."]}
+
+        for name, data in S50_DATA.items():
+            castaway_result = await db.execute(
+                select(Castaway).where(
+                    Castaway.season_id == season.id,
+                    Castaway.name == name,
+                )
+            )
+            castaway = castaway_result.scalar_one_or_none()
+            if castaway:
+                castaway.photo_url = data["photo_url"]
+                castaway.bio = data["bio"]
+                results.append(f"Updated photo + bio for {name}")
+            else:
+                results.append(f"Castaway not found: {name}")
+
+        await db.commit()
+
+    return {"status": "seeded", "details": results}
+
+
 @app.get("/api/debug/tables")
 async def debug_tables():
     """Debug endpoint — list tables in the database."""

@@ -131,6 +131,9 @@ const TRIBE_COLORS = {
     'Kele': '#2a4a7f',
     'Hina': '#f5b731',
     'Lewatu': '#5c3a6e',
+    'Cila': '#e67e22',
+    'Kalo': '#14b8a6',
+    'Vatu': '#8b5cf6',
 };
 
 // === Player Color Helpers ===
