@@ -10,6 +10,7 @@ class EpisodeCreate(BaseModel):
     is_finale: bool = False
     tribes_active: str | None = None
     notes: str | None = None
+    description: str | None = None
 
 
 class EpisodeUpdate(BaseModel):
@@ -19,6 +20,7 @@ class EpisodeUpdate(BaseModel):
     is_finale: bool | None = None
     tribes_active: str | None = None
     notes: str | None = None
+    description: str | None = None
 
 
 class EpisodeResponse(BaseModel):
@@ -31,9 +33,17 @@ class EpisodeResponse(BaseModel):
     is_finale: bool
     tribes_active: str | None
     notes: str | None
+    description: str | None = None
     is_scored: bool
 
     model_config = {"from_attributes": True}
+
+
+class AiCreateRequest(BaseModel):
+    episode_number: int = Field(..., gt=0)
+    is_merge: bool = False
+    is_finale: bool = False
+    recap_text: str | None = None
 
 
 class CastawayEventInput(BaseModel):
@@ -96,6 +106,8 @@ class AiScoringResponse(BaseModel):
     episode_id: int
     episode_number: int
     suggestions: list[AiCastawaySuggestion]
+    episode_title: str = ""
+    episode_description: str = ""
     episode_summary: str = ""
     eliminated: list[str] = []
     notes: str = ""

@@ -16,14 +16,10 @@
 
     <div id="new-episode-form" class="card hidden">
         <h3 class="card-header">Create New Episode</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
             <div class="form-group">
                 <label>Episode Number</label>
                 <input type="number" id="new-ep-number" min="1">
-            </div>
-            <div class="form-group">
-                <label>Title</label>
-                <input type="text" id="new-ep-title" placeholder="Episode title">
             </div>
             <div class="form-group">
                 <label>Options</label>
@@ -37,7 +33,17 @@
                 </div>
             </div>
         </div>
-        <button class="btn" onclick="submitNewEpisode()">Create Episode</button>
+        <div class="form-group">
+            <label>Episode Recap (optional — improves AI accuracy)</label>
+            <textarea id="new-ep-recap" rows="4" placeholder="Paste an episode recap or key moments for better AI scoring..." style="width:100%;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+            <button class="btn" onclick="aiCreateEpisode()" id="ai-create-btn" style="flex:2;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">
+                <span style="margin-right:0.5rem;">&#9733;</span> Create &amp; Score with AI
+            </button>
+            <button class="btn btn-outline" onclick="submitNewEpisode()" style="flex:1;padding:0.75rem;">Create Only (Manual)</button>
+            <span id="ai-create-loading" class="hidden"><span class="spinner"></span> Creating &amp; scoring...</span>
+        </div>
     </div>
 
     <div id="scoring-loading" class="loading hidden"><span class="spinner"></span> Loading template...</div>
@@ -82,7 +88,6 @@ async function submitNewEpisode() {
     try {
         const ep = await apiPost(`/api/seasons/${currentSeasonId}/episodes`, {
             episode_number: parseInt(document.getElementById('new-ep-number').value),
-            title: document.getElementById('new-ep-title').value || null,
             is_merge: document.getElementById('new-ep-merge').checked,
             is_finale: document.getElementById('new-ep-finale').checked,
         });
@@ -93,6 +98,49 @@ async function submitNewEpisode() {
         loadTemplate();
     } catch (err) {
         showAlert(alertBox, err.message);
+    }
+}
+
+async function aiCreateEpisode() {
+    const alertBox = document.getElementById('scoring-alert');
+    const epNum = document.getElementById('new-ep-number').value;
+    if (!epNum) {
+        showAlert(alertBox, 'Enter an episode number.');
+        return;
+    }
+
+    const createBtn = document.getElementById('ai-create-btn');
+    const loadingSpan = document.getElementById('ai-create-loading');
+    createBtn.disabled = true;
+    loadingSpan.classList.remove('hidden');
+
+    try {
+        const result = await apiPost(`/api/seasons/${currentSeasonId}/episodes/ai-create`, {
+            episode_number: parseInt(epNum),
+            is_merge: document.getElementById('new-ep-merge').checked,
+            is_finale: document.getElementById('new-ep-finale').checked,
+            recap_text: document.getElementById('new-ep-recap').value || null,
+        });
+
+        // Episode created — hide form, refresh dropdown
+        document.getElementById('new-episode-form').classList.add('hidden');
+        await loadEpisodes();
+
+        // Select the new episode and load its template
+        document.getElementById('episode-select').value = result.episode_id;
+        await loadTemplate();
+
+        // Pre-fill the grid with AI suggestions
+        populateGridFromAi(result.suggestions);
+        showAiNotes(result);
+
+        const title = result.episode_title ? ` — "${result.episode_title}"` : '';
+        showAlert(alertBox, `Episode ${result.episode_number} created${title}. AI filled ${result.suggestions.length} castaways. Review and submit.`, 'success');
+    } catch (err) {
+        showAlert(alertBox, `AI Create error: ${err.message}`);
+    } finally {
+        createBtn.disabled = false;
+        loadingSpan.classList.add('hidden');
     }
 }
 

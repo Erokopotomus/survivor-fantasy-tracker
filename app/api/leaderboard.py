@@ -171,6 +171,7 @@ async def weekly_recap(
         season_id=season_id,
         episode_number=episode_number,
         episode_title=episode.title,
+        episode_description=episode.description,
         castaway_scores=castaway_scores,
         player_standings=player_standings,
     )

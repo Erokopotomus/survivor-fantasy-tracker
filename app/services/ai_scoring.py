@@ -36,6 +36,8 @@ def build_scoring_prompt(
     system_prompt = (
         "You are a Survivor episode scoring assistant for a fantasy league. "
         "You will be given a list of castaways, scoring rules, and episode context. "
+        "In addition to scoring, you generate an engaging episode title and a 2-4 paragraph "
+        "description that all fantasy players can read as a recap. "
         "Respond with valid JSON only — no markdown fences, no commentary outside the JSON."
     )
 
@@ -100,6 +102,8 @@ INSTRUCTIONS:
 
 OUTPUT FORMAT (valid JSON, no markdown):
 {{
+  "episode_title": "Short catchy episode title (4-8 words)",
+  "episode_description": "2-4 paragraph engaging recap of the episode written for fantasy players. Cover key moments, tribal dynamics, challenge results, and strategic plays. Write in an entertaining narrator voice.",
   "suggestions": [
     {{
       "castaway_name": "Name",
@@ -288,6 +292,8 @@ async def generate_scoring_suggestions(
         "episode_id": episode.id,
         "episode_number": episode.episode_number,
         "suggestions": suggestions,
+        "episode_title": ai_response.get("episode_title", ""),
+        "episode_description": ai_response.get("episode_description", ""),
         "episode_summary": ai_response.get("episode_summary", ""),
         "eliminated": ai_response.get("eliminated", []),
         "notes": ai_response.get("notes", ""),

@@ -15,7 +15,7 @@ from app.schemas.episodes import (
     EpisodeCreate, EpisodeUpdate, EpisodeResponse,
     EpisodeScoreSubmit, EpisodeScoreResponse, CastawayScoreResult,
     ScoringTemplateResponse, TemplateRuleItem, TemplateCastawayItem,
-    AiScoringRequest, AiScoringResponse,
+    AiScoringRequest, AiScoringResponse, AiCreateRequest,
 )
 from app.api.deps import get_current_user, require_commissioner
 from app.models.models import FantasyPlayer
@@ -69,6 +69,7 @@ async def create_episode(
         is_finale=body.is_finale,
         tribes_active=body.tribes_active,
         notes=body.notes,
+        description=body.description,
     )
     db.add(episode)
     await db.flush()
@@ -230,6 +231,62 @@ async def delete_episode(
 ):
     episode = await _get_episode_or_404(db, season_id, episode_id)
     await db.delete(episode)
+
+
+@router.post("/ai-create", response_model=AiScoringResponse, status_code=201)
+async def ai_create_episode(
+    season_id: int,
+    body: AiCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: FantasyPlayer = Depends(require_commissioner),
+):
+    """Create episode + generate AI title, description, and scoring suggestions in one step."""
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="ANTHROPIC_API_KEY not configured. Add it to .env or Railway env vars.",
+        )
+
+    season = await _get_season_or_404(db, season_id)
+    current = season.status if isinstance(season.status, SeasonStatus) else SeasonStatus(season.status)
+    if current != SeasonStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Season must be active to add episodes")
+
+    # Create the episode
+    episode = Episode(
+        season_id=season_id,
+        episode_number=body.episode_number,
+        is_merge=body.is_merge,
+        is_finale=body.is_finale,
+    )
+    db.add(episode)
+    await db.flush()
+    await db.refresh(episode)
+
+    # Call AI for scoring suggestions + title + description
+    from app.services.ai_scoring import generate_scoring_suggestions
+
+    try:
+        result = await generate_scoring_suggestions(
+            db, season_id, episode.id, body.recap_text
+        )
+    except Exception as e:
+        # Episode was created but AI failed — still return what we have
+        logger.error("AI generation failed for episode %s: %s", episode.id, e)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Episode created (#{body.episode_number}) but AI generation failed: {e}",
+        )
+
+    # Save AI-generated title and description to the episode
+    if result.get("episode_title"):
+        episode.title = result["episode_title"]
+    if result.get("episode_description"):
+        episode.description = result["episode_description"]
+    await db.flush()
+
+    return result
 
 
 @router.post("/{episode_id}/ai-suggest", response_model=AiScoringResponse)

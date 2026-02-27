@@ -100,6 +100,7 @@ class Episode(Base):
     is_finale = Column(Boolean, default=False)
     tribes_active = Column(String(500))  # Comma-separated tribe names
     notes = Column(Text)
+    description = Column(Text)  # AI-generated episode recap for all players to read
     is_scored = Column(Boolean, default=False)  # Has commissioner entered events?
 
     # Relationships

@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 async function loadScores() {
     const epNum = document.getElementById('episode-select').value;
     if (!epNum) return;
@@ -44,7 +50,18 @@ async function loadScores() {
         const recap = await apiGet(`/api/seasons/${currentSeasonId}/weekly-recap/${epNum}`);
         const container = document.getElementById('scores-content');
 
-        let html = '<div class="card"><div class="card-header">Castaway Scores</div>';
+        let html = '';
+
+        // Episode description (AI-generated recap)
+        if (recap.episode_description) {
+            const descParagraphs = recap.episode_description.split('\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+            html += `<div class="card" style="border-left:3px solid var(--accent);">
+                <div class="card-header" style="font-size:0.8rem;color:var(--text-muted);">EPISODE RECAP</div>
+                ${descParagraphs}
+            </div>`;
+        }
+
+        html += '<div class="card"><div class="card-header">Castaway Scores</div>';
         html += '<table><thead><tr><th>Castaway</th><th>Score</th><th>Drafted By</th></tr></thead><tbody>';
         for (const c of recap.castaway_scores) {
             html += `<tr>

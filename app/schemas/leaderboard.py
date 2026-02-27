@@ -54,5 +54,6 @@ class WeeklyRecapResponse(BaseModel):
     season_id: int
     episode_number: int
     episode_title: str | None
+    episode_description: str | None = None
     castaway_scores: list[WeeklyRecapCastawayItem]
     player_standings: list[WeeklyRecapPlayerItem]

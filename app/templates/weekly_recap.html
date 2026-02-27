@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 async function loadRecap() {
     const epNum = document.getElementById('episode-select').value;
     if (!epNum) return;
@@ -48,6 +54,15 @@ async function loadRecap() {
             <h1>Episode ${recap.episode_number} Recap</h1>
             <p class="text-muted">${recap.episode_title || ''}</p>
         </div>`;
+
+        // Episode description (AI-generated recap)
+        if (recap.episode_description) {
+            const descParagraphs = recap.episode_description.split('\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+            html += `<div class="card" style="border-left:3px solid var(--accent);">
+                <div class="card-header" style="font-size:0.8rem;color:var(--text-muted);">EPISODE RECAP</div>
+                ${descParagraphs}
+            </div>`;
+        }
 
         // Top scorers
         const sorted = [...recap.castaway_scores].sort((a, b) => b.episode_score - a.episode_score);
