@@ -393,6 +393,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 
 .scoring-grid thead th {
     background: var(--bg-input);
+    border-bottom: 2px solid var(--border);
 }
 
 .scoring-grid input[type="number"] {
@@ -404,21 +405,23 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 
 .scoring-grid th.rule-header {
     padding: 0;
-    height: 120px;
-    min-width: 44px;
-    max-width: 44px;
+    height: 140px;
+    min-width: 48px;
+    max-width: 48px;
     vertical-align: bottom;
     white-space: nowrap;
     font-size: 0.65rem;
+    overflow: hidden;
+    position: relative;
 }
 
 .scoring-grid th.rule-header > span {
-    display: block;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
     transform: rotate(-45deg);
-    transform-origin: bottom left;
-    width: 1.5em;
-    padding-bottom: 0.4rem;
-    padding-left: 0.2rem;
+    transform-origin: center center;
+    white-space: nowrap;
 }
 
 .scoring-grid td.castaway-name {
