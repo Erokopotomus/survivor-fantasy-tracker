@@ -37,6 +37,20 @@
             <label>Episode Recap (optional — improves AI accuracy)</label>
             <textarea id="new-ep-recap" rows="4" placeholder="Paste an episode recap or key moments for better AI scoring..." style="width:100%;resize:vertical;"></textarea>
         </div>
+        <div class="form-group">
+            <label>Confessional Counts Screenshot (optional)</label>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('new-ep-confessional-file').click()" style="padding:0.5rem 1rem;border-color:#d4930d;color:#d4930d;">
+                    &#128247; Attach Screenshot
+                </button>
+                <input type="file" id="new-ep-confessional-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewConfessionalAttachment(this)">
+                <span id="confessional-attachment-name" style="font-size:0.8rem;color:var(--text-muted);"></span>
+                <button type="button" id="confessional-attachment-clear" class="hidden" onclick="clearConfessionalAttachment()" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:0.8rem;">&#x2715; Remove</button>
+            </div>
+            <div id="confessional-attachment-preview" class="hidden" style="margin-top:0.5rem;">
+                <img id="confessional-preview-img" style="max-height:80px;border-radius:4px;border:1px solid var(--border-color);">
+            </div>
+        </div>
         <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
             <button class="btn" onclick="aiCreateEpisode()" id="ai-create-btn" style="flex:2;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">
                 <span style="margin-right:0.5rem;">&#9733;</span> Create &amp; Score with AI
@@ -101,6 +115,28 @@ async function submitNewEpisode() {
     }
 }
 
+function previewConfessionalAttachment(fileInput) {
+    const nameSpan = document.getElementById('confessional-attachment-name');
+    const clearBtn = document.getElementById('confessional-attachment-clear');
+    const previewDiv = document.getElementById('confessional-attachment-preview');
+    const previewImg = document.getElementById('confessional-preview-img');
+
+    if (fileInput.files.length) {
+        const file = fileInput.files[0];
+        nameSpan.textContent = file.name;
+        clearBtn.classList.remove('hidden');
+        previewImg.src = URL.createObjectURL(file);
+        previewDiv.classList.remove('hidden');
+    }
+}
+
+function clearConfessionalAttachment() {
+    document.getElementById('new-ep-confessional-file').value = '';
+    document.getElementById('confessional-attachment-name').textContent = '';
+    document.getElementById('confessional-attachment-clear').classList.add('hidden');
+    document.getElementById('confessional-attachment-preview').classList.add('hidden');
+}
+
 async function aiCreateEpisode() {
     const alertBox = document.getElementById('scoring-alert');
     const epNum = document.getElementById('new-ep-number').value;
@@ -135,12 +171,53 @@ async function aiCreateEpisode() {
         showAiNotes(result);
 
         const title = result.episode_title ? ` — "${result.episode_title}"` : '';
-        showAlert(alertBox, `Episode ${result.episode_number} created${title}. AI filled ${result.suggestions.length} castaways. Review and submit.`, 'success');
+        let msg = `Episode ${result.episode_number} created${title}. AI filled ${result.suggestions.length} castaways.`;
+
+        // If confessional screenshot was attached, parse it now
+        const confFile = document.getElementById('new-ep-confessional-file');
+        if (confFile.files.length) {
+            loadingSpan.innerHTML = '<span class="spinner"></span> Parsing confessionals...';
+            try {
+                const formData = new FormData();
+                formData.append('file', confFile.files[0]);
+                const auth = getAuth();
+                const resp = await fetch(`/api/seasons/${currentSeasonId}/episodes/${result.episode_id}/parse-confessionals`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${auth.access_token}` },
+                    body: formData,
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Parse failed');
+                }
+                const confResult = await resp.json();
+                let matched = 0;
+                for (const entry of confResult.confessionals) {
+                    const row = document.querySelector(`tr[data-castaway-id="${entry.castaway_id}"]`);
+                    if (!row) continue;
+                    const input = row.querySelector('[data-rule="confessional_count"]');
+                    if (!input) continue;
+                    input.value = entry.count;
+                    const cell = input.closest('td');
+                    cell.classList.remove('ai-highlight');
+                    cell.removeAttribute('title');
+                    matched++;
+                }
+                msg += ` Confessionals filled for ${matched} castaways.`;
+            } catch (confErr) {
+                msg += ` Confessional parse failed: ${confErr.message}`;
+            }
+            clearConfessionalAttachment();
+        }
+
+        msg += ' Review and submit.';
+        showAlert(alertBox, msg, 'success');
     } catch (err) {
         showAlert(alertBox, `AI Create error: ${err.message}`);
     } finally {
         createBtn.disabled = false;
         loadingSpan.classList.add('hidden');
+        loadingSpan.innerHTML = '<span class="spinner"></span> Creating &amp; scoring...';
     }
 }
 
