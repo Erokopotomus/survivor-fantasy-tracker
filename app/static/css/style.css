@@ -385,16 +385,12 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     border-spacing: 0;
 }
 
-.scoring-grid thead {
+.scoring-grid thead th {
     position: sticky;
     top: 0;
     z-index: 20;
-}
-
-.scoring-grid thead th {
     background: var(--bg-input);
     border-bottom: 2px solid var(--border);
-    box-shadow: 0 2px 0 var(--border);
 }
 
 .scoring-grid input[type="number"] {
@@ -405,20 +401,20 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 }
 
 .scoring-grid th.rule-header {
-    padding: 0 0.2rem 0.5rem 0.2rem;
-    height: 150px;
-    min-width: 44px;
-    max-width: 44px;
+    padding: 0;
     vertical-align: bottom;
     white-space: nowrap;
     font-size: 0.65rem;
+    min-width: 44px;
+    max-width: 44px;
 }
 
 .scoring-grid th.rule-header > span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg) skewX(15deg);
     display: inline-block;
-    transform: rotate(-45deg);
-    transform-origin: left bottom;
-    white-space: nowrap;
+    padding: 0.5rem 0.3rem;
 }
 
 .scoring-grid td.castaway-name {
