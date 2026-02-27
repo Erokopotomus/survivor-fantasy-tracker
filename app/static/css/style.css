@@ -405,8 +405,9 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     vertical-align: bottom;
     white-space: nowrap;
     font-size: 0.65rem;
-    min-width: 44px;
-    max-width: 44px;
+    min-width: 50px;
+    max-width: 50px;
+    text-align: right;
 }
 
 .scoring-grid th.rule-header > span {
@@ -415,6 +416,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     transform: rotate(225deg);
     display: inline-block;
     padding: 0.5rem 0.3rem;
+    margin-left: 1rem;
 }
 
 .scoring-grid td.castaway-name {
