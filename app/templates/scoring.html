@@ -347,10 +347,10 @@ async function uploadConfessionals(fileInput) {
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
 
-        const token = localStorage.getItem('token');
+        const auth = getAuth();
         const resp = await fetch(`/api/seasons/${currentSeasonId}/episodes/${epId}/parse-confessionals`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: { 'Authorization': `Bearer ${auth.access_token}` },
             body: formData,
         });
         if (!resp.ok) {
