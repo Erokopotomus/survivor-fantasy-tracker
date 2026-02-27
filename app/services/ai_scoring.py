@@ -144,7 +144,7 @@ async def call_claude_api(system_prompt: str, user_prompt: str) -> dict:
             },
             json={
                 "model": "claude-sonnet-4-20250514",
-                "max_tokens": 8192,
+                "max_tokens": 16384,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}],
             },
