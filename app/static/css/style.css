@@ -401,22 +401,15 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 }
 
 .scoring-grid th.rule-header {
-    padding: 0;
+    padding: 0.4rem 0.25rem;
     vertical-align: bottom;
-    white-space: nowrap;
-    font-size: 0.65rem;
-    min-width: 50px;
-    max-width: 50px;
-    text-align: right;
-}
-
-.scoring-grid th.rule-header > span {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(225deg);
-    display: inline-block;
-    padding: 0.5rem 0.3rem;
-    margin-left: 1rem;
+    font-size: 0.6rem;
+    min-width: 62px;
+    max-width: 62px;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.2;
 }
 
 .scoring-grid td.castaway-name {
@@ -918,7 +911,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     .nav-links { order: 3; width: 100%; }
     .container { padding: 1rem; }
     .draft-board { grid-template-columns: repeat(2, 1fr); }
-    .scoring-grid th.rule-header { font-size: 0.55rem; height: 100px; }
+    .scoring-grid th.rule-header { font-size: 0.5rem; min-width: 52px; max-width: 52px; }
     .cast-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
     .roster-cards { grid-template-columns: 1fr; }
     .detail-photo-wrapper { flex-direction: column; text-align: center; }
