@@ -412,7 +412,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .scoring-grid th.rule-header > span {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    transform: rotate(180deg) skewX(15deg);
+    transform: rotate(225deg);
     display: inline-block;
     padding: 0.5rem 0.3rem;
 }
