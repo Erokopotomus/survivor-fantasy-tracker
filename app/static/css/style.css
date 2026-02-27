@@ -375,10 +375,24 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .scoring-grid {
     overflow-x: auto;
     margin-top: 1rem;
+    max-height: 75vh;
+    overflow-y: auto;
 }
 
 .scoring-grid table {
     min-width: 800px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.scoring-grid thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.scoring-grid thead th {
+    background: var(--bg-input);
 }
 
 .scoring-grid input[type="number"] {
@@ -389,13 +403,22 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 }
 
 .scoring-grid th.rule-header {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    padding: 0.5rem 0.3rem;
-    font-size: 0.6rem;
-    max-width: 40px;
+    padding: 0;
+    height: 120px;
+    min-width: 44px;
+    max-width: 44px;
+    vertical-align: bottom;
     white-space: nowrap;
+    font-size: 0.65rem;
+}
+
+.scoring-grid th.rule-header > span {
+    display: block;
+    transform: rotate(-45deg);
+    transform-origin: bottom left;
+    width: 1.5em;
+    padding-bottom: 0.4rem;
+    padding-left: 0.2rem;
 }
 
 .scoring-grid td.castaway-name {
@@ -897,7 +920,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
     .nav-links { order: 3; width: 100%; }
     .container { padding: 1rem; }
     .draft-board { grid-template-columns: repeat(2, 1fr); }
-    .scoring-grid th.rule-header { font-size: 0.55rem; }
+    .scoring-grid th.rule-header { font-size: 0.55rem; height: 100px; }
     .cast-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
     .roster-cards { grid-template-columns: 1fr; }
     .detail-photo-wrapper { flex-direction: column; text-align: center; }

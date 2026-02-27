@@ -272,10 +272,10 @@ function renderGrid(template) {
     let html = '<div class="scoring-grid"><table>';
 
     // Header row
-    html += '<thead><tr><th style="position:sticky;left:0;background:var(--bg-input);z-index:15">Castaway</th>';
+    html += '<thead><tr><th style="position:sticky;left:0;background:var(--bg-input);z-index:25;vertical-align:bottom;padding-bottom:0.5rem;">Castaway</th>';
     for (const rule of rules) {
         const tooltip = `${rule.rule_name} (${rule.points > 0 ? '+' : ''}${rule.points} pts, ${rule.multiplier})`;
-        html += `<th class="rule-header" title="${tooltip}">${rule.rule_name}</th>`;
+        html += `<th class="rule-header" title="${tooltip}"><span>${rule.rule_name}</span></th>`;
     }
     html += '</tr></thead><tbody>';
 
