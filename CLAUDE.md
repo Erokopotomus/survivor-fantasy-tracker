@@ -109,6 +109,8 @@ uvicorn app.main:app --reload
 - Push to GitHub → Railway project → add PostgreSQL plugin
 - Set `SECRET_KEY` and `COMMISSIONER_KEY` env vars
 - `railway.toml` configures healthcheck at `/health`, restart on failure
+- Railway DB: `postgresql://postgres:BAvEgslBTfQFnojyKYaZgUnDoyqxSOOy@postgres.railway.internal:5432/railway`
+- Railway App: `https://web-production-72cf1.up.railway.app`
 
 ## Auth
 - **Register**: `POST /api/auth/register` (pass `commissioner_key` to get commissioner role)
