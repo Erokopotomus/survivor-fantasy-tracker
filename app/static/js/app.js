@@ -159,7 +159,7 @@ function getInitials(name) {
 
 function renderPhoto(photoUrl, name, size = 64) {
     if (photoUrl) {
-        return `<img src="${photoUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;">`;
+        return `<img src="${photoUrl}" alt="${name}" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;object-fit:cover;object-position:top;border-radius:50%;">`;
     }
     const initials = getInitials(name);
     return `<div class="photo-initials" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;">${initials}</div>`;

@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let html = `<div class="detail-photo-wrapper">`;
         if (detail.photo_url) {
-            html += `<img src="${detail.photo_url}" alt="${detail.name}" referrerpolicy="no-referrer" style="width:100px;height:100px;border-color:${tribeColor};">`;
+            html += `<img src="${detail.photo_url}" alt="${detail.name}" referrerpolicy="no-referrer" style="width:100px;height:100px;object-fit:cover;object-position:top;border-color:${tribeColor};">`;
         } else {
             html += `<div class="photo-initials" style="width:100px;height:100px;font-size:38px;border-color:${tribeColor};">${getInitials(detail.name)}</div>`;
         }
