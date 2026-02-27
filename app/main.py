@@ -216,6 +216,85 @@ async def seed_s49_photos():
     return {"status": "seeded", "details": results}
 
 
+@app.post("/api/seed-s50-cast")
+async def seed_s50_cast():
+    """Seed Season 50 with the full 24-person returning player cast, grouped by tribe."""
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.models import Castaway, Season, CastawayStatus
+
+    S50_CAST = [
+        # ── Cila (Orange) ──
+        {"name": "Cirie Fields", "age": 55, "occupation": "Surgical Director", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Ozzy Lusth", "age": 43, "occupation": "Content Creator", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Christian Hubicki", "age": 39, "occupation": "Associate Professor", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Rick Devens", "age": 41, "occupation": "Director of Communications", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Jenna Lewis-Dougherty", "age": 47, "occupation": "Realtor", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Emily Flippen", "age": 30, "occupation": "Financial Analyst", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Savannah Louie", "age": 31, "occupation": "News Reporter", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        {"name": "Joe Hunter", "age": 45, "occupation": "Fire Captain", "starting_tribe": "Cila", "current_tribe": "Cila"},
+        # ── Kalo (Teal) ──
+        {"name": "Benjamin \"Coach\" Wade", "age": 53, "occupation": "Soccer Coach/Musician", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Mike White", "age": 54, "occupation": "Director/Writer", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Chrissy Hofbeck", "age": 54, "occupation": "Actuary", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Charlie Davis", "age": 27, "occupation": "Lawyer", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Tiffany Ervin", "age": 34, "occupation": "Visual Artist", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Jonathan Young", "age": 32, "occupation": "Bodyguard", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Dee Valladares", "age": 28, "occupation": "Entrepreneur", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        {"name": "Kamilla Karthigesu", "age": 31, "occupation": "Senior Software Engineer", "starting_tribe": "Kalo", "current_tribe": "Kalo"},
+        # ── Vatu (Purple) ──
+        {"name": "Colby Donaldson", "age": 51, "occupation": "Rancher", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Stephenie LaGrossa Kendrick", "age": 45, "occupation": "Territory Sales Representative", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Aubry Bracco", "age": 39, "occupation": "Marketing Director", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Angelina Keeley", "age": 35, "occupation": "Entrepreneur", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Genevieve Mushaluk", "age": 34, "occupation": "Lawyer", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Kyle Fraser", "age": 31, "occupation": "Music Attorney", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Q Burdette", "age": 31, "occupation": "Realtor", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+        {"name": "Rizo Velovic", "age": 25, "occupation": "Content Creator", "starting_tribe": "Vatu", "current_tribe": "Vatu"},
+    ]
+
+    results = []
+    async with AsyncSessionLocal() as db:
+        season_result = await db.execute(
+            select(Season).where(Season.season_number == 50)
+        )
+        season = season_result.scalar_one_or_none()
+        if not season:
+            return {"status": "error", "details": ["Season 50 not found. Run /api/seed first."]}
+
+        for c in S50_CAST:
+            existing = await db.execute(
+                select(Castaway).where(
+                    Castaway.season_id == season.id,
+                    Castaway.name == c["name"],
+                )
+            )
+            if existing.scalar_one_or_none():
+                results.append(f"Already exists: {c['name']}")
+                continue
+
+            castaway = Castaway(
+                season_id=season.id,
+                name=c["name"],
+                age=c["age"],
+                occupation=c["occupation"],
+                starting_tribe=c["starting_tribe"],
+                current_tribe=c["current_tribe"],
+                status=CastawayStatus.ACTIVE,
+            )
+            db.add(castaway)
+            results.append(f"Added: {c['name']} ({c['starting_tribe']})")
+
+        await db.commit()
+
+    return {
+        "status": "seeded",
+        "cast_count": len(S50_CAST),
+        "tribes": {"Cila": 8, "Kalo": 8, "Vatu": 8},
+        "details": results,
+    }
+
+
 @app.get("/api/debug/tables")
 async def debug_tables():
     """Debug endpoint — list tables in the database."""
