@@ -52,6 +52,7 @@ class WeeklyRecapPlayerItem(BaseModel):
 
 class WeeklyRecapResponse(BaseModel):
     season_id: int
+    episode_id: int
     episode_number: int
     episode_title: str | None
     episode_description: str | None = None

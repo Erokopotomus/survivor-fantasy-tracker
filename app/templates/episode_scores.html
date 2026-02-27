@@ -10,6 +10,7 @@
         <button class="btn btn-outline" onclick="loadScores()">View Scores</button>
     </div>
 
+    <div id="scores-alert"></div>
     <div id="scores-loading" class="loading hidden"><span class="spinner"></span></div>
     <div id="scores-content" class="hidden"></div>
 </div>
@@ -18,6 +19,8 @@
 {% block scripts %}
 <script>
 let currentSeasonId = null;
+let currentRecap = null;
+let currentSort = { key: 'score', dir: 'desc' };
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!requireAuth()) return;
@@ -29,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sel.innerHTML = '<option value="">Select episode...</option>';
     for (const ep of eps) {
         if (!ep.is_scored) continue;
-        sel.innerHTML += `<option value="${ep.episode_number}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}</option>`;
+        sel.innerHTML += `<option value="${ep.episode_number}" data-ep-id="${ep.id}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}</option>`;
     }
 });
 
@@ -47,47 +50,165 @@ async function loadScores() {
     document.getElementById('scores-content').classList.add('hidden');
 
     try {
-        const recap = await apiGet(`/api/seasons/${currentSeasonId}/weekly-recap/${epNum}`);
-        const container = document.getElementById('scores-content');
-
-        let html = '';
-
-        // Episode description (AI-generated recap)
-        if (recap.episode_description) {
-            const descParagraphs = recap.episode_description.split('\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p)}</p>`).join('');
-            html += `<div class="card" style="border-left:3px solid var(--accent);">
-                <div class="card-header" style="font-size:0.8rem;color:var(--text-muted);">EPISODE RECAP</div>
-                ${descParagraphs}
-            </div>`;
-        }
-
-        html += '<div class="card"><div class="card-header">Castaway Scores</div>';
-        html += '<table><thead><tr><th>Castaway</th><th>Score</th><th>Drafted By</th></tr></thead><tbody>';
-        for (const c of recap.castaway_scores) {
-            html += `<tr>
-                <td><strong>${c.castaway_name}</strong></td>
-                <td>${formatScore(c.episode_score)}</td>
-                <td class="text-muted" style="font-size:0.8rem">${c.drafted_by.join(', ') || '-'}</td>
-            </tr>`;
-        }
-        html += '</tbody></table></div>';
-
-        html += '<div class="card"><div class="card-header">Player Standings</div>';
-        html += '<table><thead><tr><th>Player</th><th>Episode Score</th><th>Season Total</th></tr></thead><tbody>';
-        for (const p of recap.player_standings) {
-            html += `<tr>
-                <td><strong>${p.player_name}</strong></td>
-                <td>${formatScore(p.episode_score)}</td>
-                <td>${formatScore(p.season_total)}</td>
-            </tr>`;
-        }
-        html += '</tbody></table></div>';
-
-        container.innerHTML = html;
+        currentRecap = await apiGet(`/api/seasons/${currentSeasonId}/weekly-recap/${epNum}`);
+        currentSort = { key: 'score', dir: 'desc' };
+        renderScores();
         document.getElementById('scores-loading').classList.add('hidden');
-        container.classList.remove('hidden');
+        document.getElementById('scores-content').classList.remove('hidden');
     } catch (err) {
         document.getElementById('scores-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
+    }
+}
+
+function renderScores() {
+    const recap = currentRecap;
+    const container = document.getElementById('scores-content');
+    const auth = getAuth();
+    const isCommissioner = auth && auth.is_commissioner;
+
+    let html = '';
+
+    // Episode recap with edit button for commissioner
+    if (recap.episode_description) {
+        const descParagraphs = recap.episode_description.split('\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+        html += `<div class="card" style="border-left:3px solid var(--accent);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="card-header" style="font-size:0.8rem;color:var(--text-muted);">EPISODE RECAP</div>
+                ${isCommissioner ? '<button class="btn btn-outline" onclick="toggleEditRecap()" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Edit</button>' : ''}
+            </div>
+            <div id="recap-display">${descParagraphs}</div>
+            <div id="recap-edit" class="hidden" style="margin-top:0.5rem;">
+                <textarea id="recap-textarea" rows="8" style="width:100%;resize:vertical;">${escapeHtml(recap.episode_description)}</textarea>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                    <button class="btn" onclick="saveRecap()" style="padding:0.4rem 0.75rem;font-size:0.85rem;">Save</button>
+                    <button class="btn btn-outline" onclick="toggleEditRecap()" style="padding:0.4rem 0.75rem;font-size:0.85rem;">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Player standings
+    html += '<div class="card"><div class="card-header">Player Standings</div>';
+    html += '<table><thead><tr><th>Player</th><th>Episode Score</th><th>Season Total</th></tr></thead><tbody>';
+    for (const p of recap.player_standings) {
+        const color = getPlayerColor(p.player_name);
+        html += `<tr>
+            <td><strong style="color:${color.accent}">${p.player_name}</strong></td>
+            <td>${formatScore(p.episode_score)}</td>
+            <td>${formatScore(p.season_total)}</td>
+        </tr>`;
+    }
+    html += '</tbody></table></div>';
+
+    // Castaway scores — grouped by drafter, sortable
+    const sortArrow = (key) => {
+        if (currentSort.key !== key) return ' <span style="opacity:0.3">&#9650;</span>';
+        return currentSort.dir === 'asc' ? ' <span style="color:var(--accent)">&#9650;</span>' : ' <span style="color:var(--accent)">&#9660;</span>';
+    };
+
+    // Sort castaways
+    let sorted = [...recap.castaway_scores];
+    if (currentSort.key === 'name') {
+        sorted.sort((a, b) => currentSort.dir === 'asc' ? a.castaway_name.localeCompare(b.castaway_name) : b.castaway_name.localeCompare(a.castaway_name));
+    } else if (currentSort.key === 'score') {
+        sorted.sort((a, b) => currentSort.dir === 'asc' ? a.episode_score - b.episode_score : b.episode_score - a.episode_score);
+    } else if (currentSort.key === 'drafter') {
+        sorted.sort((a, b) => {
+            const aD = a.drafted_by[0] || 'zzz';
+            const bD = b.drafted_by[0] || 'zzz';
+            return currentSort.dir === 'asc' ? aD.localeCompare(bD) : bD.localeCompare(aD);
+        });
+    }
+
+    // Group by drafter
+    const grouped = {};
+    for (const c of sorted) {
+        const drafter = c.drafted_by[0] || 'Undrafted';
+        if (!grouped[drafter]) grouped[drafter] = [];
+        grouped[drafter].push(c);
+    }
+
+    // If sorting by drafter, render grouped; otherwise flat table
+    if (currentSort.key === 'drafter') {
+        html += '<div class="card"><div class="card-header">Castaway Scores</div>';
+        html += `<div style="margin-bottom:0.5rem;display:flex;gap:1rem;font-size:0.8rem;color:var(--text-muted);">
+            Sort: <a href="#" onclick="sortBy('name');return false;" style="color:var(--sand)">Name${sortArrow('name')}</a>
+            <a href="#" onclick="sortBy('score');return false;" style="color:var(--sand)">Score${sortArrow('score')}</a>
+            <a href="#" onclick="sortBy('drafter');return false;" style="color:var(--sand)">Drafter${sortArrow('drafter')}</a>
+        </div>`;
+
+        for (const [drafter, castaways] of Object.entries(grouped)) {
+            const color = getPlayerColor(drafter);
+            const groupTotal = castaways.reduce((sum, c) => sum + c.episode_score, 0);
+            html += `<div style="margin-bottom:1rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.5rem;border-left:3px solid ${color.accent};background:${color.bg};border-radius:4px;margin-bottom:0.25rem;">
+                    <strong style="color:${color.accent}">${escapeHtml(drafter)}</strong>
+                    <span style="color:${color.accent};font-size:0.85rem;">${groupTotal.toFixed(2)} pts</span>
+                </div>`;
+            html += '<table style="margin:0;"><tbody>';
+            for (const c of castaways) {
+                html += `<tr>
+                    <td style="padding-left:1rem;"><strong>${escapeHtml(c.castaway_name)}</strong></td>
+                    <td style="text-align:right;">${formatScore(c.episode_score)}</td>
+                </tr>`;
+            }
+            html += '</tbody></table></div>';
+        }
+        html += '</div>';
+    } else {
+        html += '<div class="card"><div class="card-header">Castaway Scores</div>';
+        html += `<div style="margin-bottom:0.5rem;display:flex;gap:1rem;font-size:0.8rem;color:var(--text-muted);">
+            Sort: <a href="#" onclick="sortBy('name');return false;" style="color:var(--sand)">Name${sortArrow('name')}</a>
+            <a href="#" onclick="sortBy('score');return false;" style="color:var(--sand)">Score${sortArrow('score')}</a>
+            <a href="#" onclick="sortBy('drafter');return false;" style="color:var(--sand)">Drafter${sortArrow('drafter')}</a>
+        </div>`;
+        html += '<table><thead><tr>';
+        html += `<th onclick="sortBy('name')" style="cursor:pointer">Castaway${sortArrow('name')}</th>`;
+        html += `<th onclick="sortBy('score')" style="cursor:pointer">Score${sortArrow('score')}</th>`;
+        html += `<th onclick="sortBy('drafter')" style="cursor:pointer">Drafted By${sortArrow('drafter')}</th>`;
+        html += '</tr></thead><tbody>';
+        for (const c of sorted) {
+            const drafter = c.drafted_by[0] || '-';
+            const color = drafter !== '-' ? getPlayerColor(drafter) : { accent: 'var(--text-muted)' };
+            html += `<tr>
+                <td><strong>${escapeHtml(c.castaway_name)}</strong></td>
+                <td>${formatScore(c.episode_score)}</td>
+                <td style="font-size:0.85rem;color:${color.accent}">${escapeHtml(drafter)}</td>
+            </tr>`;
+        }
+        html += '</tbody></table></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function sortBy(key) {
+    if (currentSort.key === key) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.key = key;
+        currentSort.dir = key === 'score' ? 'desc' : 'asc';
+    }
+    renderScores();
+}
+
+function toggleEditRecap() {
+    document.getElementById('recap-display').classList.toggle('hidden');
+    document.getElementById('recap-edit').classList.toggle('hidden');
+}
+
+async function saveRecap() {
+    const alertBox = document.getElementById('scores-alert');
+    const newDesc = document.getElementById('recap-textarea').value;
+    const epId = currentRecap.episode_id;
+
+    try {
+        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${epId}`, { description: newDesc });
+        currentRecap.episode_description = newDesc;
+        renderScores();
+        showAlert(alertBox, 'Episode recap updated.', 'success');
+    } catch (err) {
+        showAlert(alertBox, `Save failed: ${err.message}`);
     }
 }
 </script>

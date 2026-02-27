@@ -164,6 +164,38 @@ async def get_scoring_template(
     )
 
 
+@router.get("/{episode_id}/scores")
+async def get_episode_scores(
+    season_id: int,
+    episode_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: FantasyPlayer = Depends(require_commissioner),
+):
+    """Get existing event_data for a scored episode (for editing)."""
+    episode = await _get_episode_or_404(db, season_id, episode_id)
+
+    events_result = await db.execute(
+        select(CastawayEpisodeEvent, Castaway)
+        .join(Castaway, CastawayEpisodeEvent.castaway_id == Castaway.id)
+        .where(CastawayEpisodeEvent.episode_id == episode_id)
+    )
+    events = events_result.all()
+
+    return {
+        "episode_id": episode.id,
+        "episode_number": episode.episode_number,
+        "is_scored": episode.is_scored,
+        "events": [
+            {
+                "castaway_id": castaway.id,
+                "castaway_name": castaway.name,
+                "event_data": event.event_data or {},
+            }
+            for event, castaway in events
+        ],
+    }
+
+
 @router.post("/{episode_id}/score", response_model=EpisodeScoreResponse)
 async def submit_episode_scores(
     season_id: int,
@@ -215,6 +247,7 @@ async def submit_episode_scores(
 
     episode.is_scored = True
     await db.flush()
+    await db.commit()
 
     return EpisodeScoreResponse(
         episode_id=episode.id,
@@ -301,6 +334,7 @@ async def ai_create_episode(
     if result.get("episode_description"):
         episode.description = result["episode_description"]
     await db.flush()
+    await db.commit()
 
     return result
 

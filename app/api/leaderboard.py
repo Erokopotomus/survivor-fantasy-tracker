@@ -169,6 +169,7 @@ async def weekly_recap(
 
     return WeeklyRecapResponse(
         season_id=season_id,
+        episode_id=episode.id,
         episode_number=episode_number,
         episode_title=episode.title,
         episode_description=episode.description,

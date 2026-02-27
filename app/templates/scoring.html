@@ -233,6 +233,30 @@ async function loadTemplate() {
     try {
         currentTemplate = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}/template`);
         renderGrid(currentTemplate);
+
+        // If episode already has scores, load them into the grid
+        try {
+            const existing = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}/scores`);
+            if (existing.events && existing.events.length > 0) {
+                for (const ev of existing.events) {
+                    const row = document.querySelector(`tr[data-castaway-id="${ev.castaway_id}"]`);
+                    if (!row) continue;
+                    for (const [ruleKey, value] of Object.entries(ev.event_data)) {
+                        const input = row.querySelector(`[data-rule="${ruleKey}"]`);
+                        if (!input) continue;
+                        if (input.tagName === 'SELECT') {
+                            input.value = value ? '1' : '0';
+                        } else {
+                            input.value = value;
+                        }
+                    }
+                }
+                showAlert(document.getElementById('scoring-alert'), `Loaded existing scores for ${existing.events.length} castaways. Edit and re-submit as needed.`, 'success');
+            }
+        } catch (e) {
+            // No existing scores — that's fine, blank grid
+        }
+
         loading.classList.add('hidden');
         container.classList.remove('hidden');
     } catch (err) {
