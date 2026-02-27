@@ -1,7 +1,8 @@
+import base64
 import logging
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -340,3 +341,89 @@ async def ai_scoring_suggest(
         )
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+@router.post("/{episode_id}/parse-confessionals")
+async def parse_confessionals(
+    season_id: int,
+    episode_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: FantasyPlayer = Depends(require_commissioner),
+):
+    """Upload a confessional count screenshot and extract counts via Claude Vision."""
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="ANTHROPIC_API_KEY not configured.",
+        )
+
+    # Validate image
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{file.content_type}' not allowed. Use JPEG, PNG, or WebP.",
+        )
+    data = await file.read()
+    if len(data) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 2 MB.")
+
+    await _get_season_or_404(db, season_id)
+    episode = await _get_episode_or_404(db, season_id, episode_id)
+
+    # Load active castaways
+    cast_result = await db.execute(
+        select(Castaway)
+        .where(Castaway.season_id == season_id, Castaway.status == CastawayStatus.ACTIVE)
+        .order_by(Castaway.name)
+    )
+    castaways = list(cast_result.scalars().all())
+    castaway_names = [c.name for c in castaways]
+
+    # Build lookup for name matching
+    name_to_castaway: dict[str, Castaway] = {}
+    for c in castaways:
+        name_to_castaway[c.name.lower()] = c
+
+    # Call vision API
+    from app.services.ai_scoring import parse_confessional_image
+
+    try:
+        image_b64 = base64.b64encode(data).decode("utf-8")
+        raw_counts = await parse_confessional_image(
+            image_b64, file.content_type, castaway_names, episode.episode_number
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Vision request timed out. Try again.")
+    except httpx.HTTPStatusError as e:
+        logger.error("Vision API error: %s %s", e.response.status_code, e.response.text[:300])
+        raise HTTPException(status_code=502, detail=f"Vision API error ({e.response.status_code}).")
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    # Map AI-returned names to castaway IDs (same fuzzy logic as parse_ai_suggestions)
+    results = []
+    for raw_name, count in raw_counts.items():
+        # Exact match
+        castaway = name_to_castaway.get(raw_name.lower())
+        # Substring fallback
+        if not castaway:
+            for key, c in name_to_castaway.items():
+                if raw_name.lower() in key or key in raw_name.lower():
+                    castaway = c
+                    break
+        if not castaway:
+            logger.warning("Vision returned unmatched castaway: %s", raw_name)
+            continue
+        results.append({
+            "castaway_id": castaway.id,
+            "castaway_name": castaway.name,
+            "count": count,
+        })
+
+    return {"confessionals": results}
