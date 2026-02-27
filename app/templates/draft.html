@@ -6,6 +6,12 @@
     <div id="draft-alert"></div>
     <div id="draft-loading" class="loading"><span class="spinner"></span> Loading...</div>
     <div id="draft-content" class="hidden">
+        <div id="draft-order-panel" class="card mb-2 hidden">
+            <h2 class="mb-1">Set Draft Order</h2>
+            <p class="text-muted mb-1">Use the arrows to arrange the pick order, then lock it in.</p>
+            <div id="draft-order-list"></div>
+            <button id="lock-order-btn" class="btn btn-primary mt-1" onclick="lockDraftOrder()">Lock In Order</button>
+        </div>
         <div id="turn-indicator" class="turn-indicator"></div>
         <div id="draft-board" class="draft-board"></div>
         <h2 class="mt-2 mb-1">Available Castaways</h2>
@@ -49,17 +55,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         castaways = await apiGet(`/api/seasons/${seasonId}/castaways`);
         rosters = await apiGet(`/api/seasons/${seasonId}/rosters`);
 
-        // Build draft order (snake)
-        const playerIds = players.map(p => p.id);
-        const rounds = season.max_roster_size || 4;
-        draftOrder = generateSnakeOrder(playerIds, rounds);
-
         // Figure out current pick number from existing draft picks
         let totalPicks = 0;
         for (const roster of rosters) {
             totalPicks += roster.castaways.filter(c => c.pickup_type === 'draft').length;
         }
         currentPick = totalPicks;
+
+        // Build draft order — check localStorage for a saved order first
+        const storageKey = `season-${seasonId}-draft-order`;
+        const savedOrder = localStorage.getItem(storageKey);
+        let playerIds;
+        if (savedOrder) {
+            try {
+                playerIds = JSON.parse(savedOrder);
+                // Validate: must contain same player IDs
+                const currentIds = new Set(players.map(p => p.id));
+                const savedIds = new Set(playerIds);
+                if (playerIds.length !== currentIds.size || !playerIds.every(id => currentIds.has(id))) {
+                    playerIds = players.map(p => p.id);
+                    localStorage.removeItem(storageKey);
+                }
+            } catch {
+                playerIds = players.map(p => p.id);
+            }
+        } else {
+            playerIds = players.map(p => p.id);
+        }
+        const rounds = season.max_roster_size || 4;
+        draftOrder = generateSnakeOrder(playerIds, rounds);
+
+        // Show draft order panel if commissioner and no picks yet and no saved order
+        const auth2 = getAuth();
+        if (auth2 && auth2.is_commissioner && currentPick === 0 && !savedOrder) {
+            showDraftOrderPanel(playerIds);
+        }
 
         renderDraft();
 
@@ -171,6 +201,55 @@ async function makePick(castawayId) {
     } catch (err) {
         showAlert(alertBox, err.message);
     }
+}
+
+// --- Draft Order Panel ---
+let pendingOrder = [];
+
+function showDraftOrderPanel(playerIds) {
+    pendingOrder = [...playerIds];
+    const panel = document.getElementById('draft-order-panel');
+    panel.classList.remove('hidden');
+    renderOrderList();
+}
+
+function renderOrderList() {
+    const list = document.getElementById('draft-order-list');
+    let html = '';
+    for (let i = 0; i < pendingOrder.length; i++) {
+        const p = players.find(pl => pl.id === pendingOrder[i]);
+        const name = p ? p.display_name : '?';
+        html += `<div class="draft-order-row" style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;border-bottom:1px solid var(--border-color, #444);">
+            <span style="min-width:1.5rem;font-weight:bold;color:var(--text-muted, #999);">${i + 1}.</span>
+            <span style="flex:1;">${name}</span>
+            <button class="btn btn-sm" onclick="moveOrderUp(${i})" ${i === 0 ? 'disabled' : ''} title="Move up">&uarr;</button>
+            <button class="btn btn-sm" onclick="moveOrderDown(${i})" ${i === pendingOrder.length - 1 ? 'disabled' : ''} title="Move down">&darr;</button>
+        </div>`;
+    }
+    list.innerHTML = html;
+}
+
+function moveOrderUp(index) {
+    if (index <= 0) return;
+    [pendingOrder[index - 1], pendingOrder[index]] = [pendingOrder[index], pendingOrder[index - 1]];
+    renderOrderList();
+}
+
+function moveOrderDown(index) {
+    if (index >= pendingOrder.length - 1) return;
+    [pendingOrder[index], pendingOrder[index + 1]] = [pendingOrder[index + 1], pendingOrder[index]];
+    renderOrderList();
+}
+
+function lockDraftOrder() {
+    const storageKey = `season-${seasonId}-draft-order`;
+    localStorage.setItem(storageKey, JSON.stringify(pendingOrder));
+
+    const rounds = season.max_roster_size || 4;
+    draftOrder = generateSnakeOrder(pendingOrder, rounds);
+
+    document.getElementById('draft-order-panel').classList.add('hidden');
+    renderDraft();
 }
 </script>
 {% endblock %}
