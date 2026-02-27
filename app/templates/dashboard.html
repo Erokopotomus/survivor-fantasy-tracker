@@ -2,6 +2,13 @@
 {% block title %}Dashboard - Survivor Fantasy{% endblock %}
 {% block content %}
 <div id="page-content">
+    <div id="season-status-bar" class="hidden" style="display:none;align-items:center;gap:1rem;padding:0.75rem 1rem;margin-bottom:1rem;border-radius:6px;border:1px solid var(--border-color,#444);background:var(--card-bg,#1a1a1a);">
+        <div style="flex:1;">
+            <span class="text-muted" style="font-size:0.85rem;">Season Status:</span>
+            <strong id="status-label" style="margin-left:0.4rem;text-transform:uppercase;letter-spacing:0.05em;"></strong>
+        </div>
+        <div id="status-actions"></div>
+    </div>
     <div class="flex-between mb-2">
         <h1>Leaderboard</h1>
         <div id="season-info" class="text-muted" style="font-family:'Almendra',serif;font-style:italic;"></div>
@@ -28,6 +35,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const seasons = await getSeasons();
         const season = seasons.find(s => s.id === seasonId);
         document.getElementById('season-info').textContent = season ? season.name : '';
+
+        if (auth.is_commissioner && season) {
+            renderStatusBar(season, seasonId);
+        }
 
         const lb = await apiGet(`/api/seasons/${seasonId}/leaderboard`);
         const container = document.getElementById('leaderboard-content');
@@ -88,5 +99,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('leaderboard-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
     }
 });
+
+const STATUS_FLOW = {
+    setup:    { next: 'drafting',  label: 'Start Draft',      color: '#D4930D' },
+    drafting: { next: 'active',    label: 'Start Season',     color: '#10B981' },
+    active:   { next: 'complete',  label: 'Complete Season',  color: '#3B82F6' },
+    complete: { next: 'active',    label: 'Reopen Season',    color: '#F97316' },
+};
+
+const STATUS_COLORS = {
+    setup: '#999', drafting: '#D4930D', active: '#10B981', complete: '#3B82F6',
+};
+
+function renderStatusBar(season, seasonId) {
+    const bar = document.getElementById('season-status-bar');
+    const label = document.getElementById('status-label');
+    const actions = document.getElementById('status-actions');
+    const status = season.status;
+
+    label.textContent = status;
+    label.style.color = STATUS_COLORS[status] || '#ccc';
+
+    const flow = STATUS_FLOW[status];
+    if (flow) {
+        actions.innerHTML = `<button class="btn btn-sm" style="border-color:${flow.color};color:${flow.color};" onclick="transitionSeason(${seasonId}, '${flow.next}')">${flow.label} &rarr;</button>`;
+    } else {
+        actions.innerHTML = '';
+    }
+
+    bar.classList.remove('hidden');
+    bar.style.display = 'flex';
+}
+
+async function transitionSeason(seasonId, newStatus) {
+    const flow = Object.values(STATUS_FLOW).find(f => f.next === newStatus);
+    const label = flow ? flow.label : `Change to ${newStatus}`;
+    if (!confirm(`${label}? This will change the season status to "${newStatus}".`)) return;
+
+    try {
+        await apiPatch(`/api/seasons/${seasonId}/status`, { status: newStatus });
+        location.reload();
+    } catch (err) {
+        alert('Failed: ' + err.message);
+    }
+}
 </script>
 {% endblock %}
