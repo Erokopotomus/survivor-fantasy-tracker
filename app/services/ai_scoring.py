@@ -134,7 +134,7 @@ async def call_claude_api(system_prompt: str, user_prompt: str) -> dict:
     """
     settings = get_settings()
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers={
@@ -144,7 +144,7 @@ async def call_claude_api(system_prompt: str, user_prompt: str) -> dict:
             },
             json={
                 "model": "claude-sonnet-4-20250514",
-                "max_tokens": 4096,
+                "max_tokens": 8192,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}],
             },

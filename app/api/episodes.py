@@ -253,16 +253,31 @@ async def ai_create_episode(
     if current != SeasonStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Season must be active to add episodes")
 
-    # Create the episode
-    episode = Episode(
-        season_id=season_id,
-        episode_number=body.episode_number,
-        is_merge=body.is_merge,
-        is_finale=body.is_finale,
+    # Reuse existing unscored episode with same number (retry-safe), or create new
+    existing_result = await db.execute(
+        select(Episode).where(
+            Episode.season_id == season_id,
+            Episode.episode_number == body.episode_number,
+        )
     )
-    db.add(episode)
-    await db.flush()
-    await db.refresh(episode)
+    episode = existing_result.scalar_one_or_none()
+    if episode and episode.is_scored:
+        raise HTTPException(status_code=409, detail=f"Episode {body.episode_number} already scored.")
+    if not episode:
+        episode = Episode(
+            season_id=season_id,
+            episode_number=body.episode_number,
+            is_merge=body.is_merge,
+            is_finale=body.is_finale,
+        )
+        db.add(episode)
+        await db.flush()
+        await db.refresh(episode)
+    else:
+        # Update flags on retry
+        episode.is_merge = body.is_merge
+        episode.is_finale = body.is_finale
+        await db.flush()
 
     # Call AI for scoring suggestions + title + description
     from app.services.ai_scoring import generate_scoring_suggestions
