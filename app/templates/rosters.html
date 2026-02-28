@@ -3,6 +3,7 @@
 {% block content %}
 <div id="page-content">
     <h1 class="mb-2">Rosters</h1>
+    <div id="rosters-alert"></div>
     <div id="rosters-loading" class="loading"><span class="spinner"></span> Loading...</div>
     <div id="rosters-content" class="hidden"></div>
 </div>
@@ -10,29 +11,71 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!requireAuth()) return;
+let currentSeasonId = null;
+let allPlayers = [];
+let allCastaways = [];
 
-    const seasonId = await getCurrentSeasonId();
-    if (!seasonId) return;
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = requireAuth();
+    if (!auth) return;
+
+    currentSeasonId = await getCurrentSeasonId();
+    if (!currentSeasonId) return;
+
+    await loadRosters();
+});
+
+async function loadRosters() {
+    const auth = getAuth();
+    const isCommissioner = auth && auth.is_commissioner;
 
     try {
-        const rosters = await apiGet(`/api/seasons/${seasonId}/rosters`);
+        const rosters = await apiGet(`/api/seasons/${currentSeasonId}/rosters`);
         const container = document.getElementById('rosters-content');
 
+        let html = '';
+
+        // Free agent pickup form (commissioner only)
+        if (isCommissioner) {
+            html += `<div class="card" style="border-left:3px solid var(--green);margin-bottom:1.5rem;">
+                <div class="card-header" style="color:var(--green);">Free Agent Pickup</div>
+                <div id="fa-form">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label>Player</label>
+                            <select id="fa-player"><option value="">Loading...</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Castaway to Add</label>
+                            <select id="fa-castaway"><option value="">Loading...</option></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>After Episode #</label>
+                        <input type="number" id="fa-episode" min="1" style="width:100px;" placeholder="Ep #">
+                        <span class="text-muted" style="font-size:0.75rem;margin-left:0.5rem;">Episode when their castaway was eliminated</span>
+                    </div>
+                    <button class="btn btn-green" onclick="submitFreeAgent()" id="fa-submit-btn" style="padding:0.5rem 1.5rem;">Add Free Agent</button>
+                </div>
+            </div>`;
+        }
+
+        // Roster cards
         if (rosters.length === 0) {
-            container.innerHTML = '<p class="text-muted">No rosters yet. Start the draft!</p>';
+            html += '<p class="text-muted">No rosters yet. Start the draft!</p>';
         } else {
-            let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">';
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">';
             for (const roster of rosters) {
-                html += `<div class="card">
-                    <div class="card-header">${roster.player_name}</div>
+                const color = getPlayerColor(roster.player_name);
+                html += `<div class="card" style="border-top:3px solid ${color.accent};">
+                    <div class="card-header" style="color:${color.accent}">${roster.player_name}</div>
                     <table><tbody>`;
                 for (const entry of roster.castaways) {
+                    const inactive = !entry.is_active ? ' style="opacity:0.4;text-decoration:line-through"' : '';
                     const type = entry.pickup_type === 'draft'
                         ? `<span class="text-muted" style="font-size:0.7rem">Pick #${entry.draft_position || '?'}</span>`
-                        : '<span class="badge badge-active" style="font-size:0.65rem">FA</span>';
-                    html += `<tr>
+                        : `<span class="badge badge-active" style="font-size:0.65rem">FA (Ep ${entry.picked_up_after_episode || '?'})</span>`;
+                    html += `<tr${inactive}>
                         <td><a href="/castaway/${entry.castaway_id}" style="color:var(--text);text-decoration:none"><strong>${entry.castaway_name}</strong></a></td>
                         <td style="text-align:right">${type}</td>
                     </tr>`;
@@ -43,14 +86,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                 html += '</tbody></table></div>';
             }
             html += '</div>';
-            container.innerHTML = html;
         }
 
+        container.innerHTML = html;
         document.getElementById('rosters-loading').classList.add('hidden');
         container.classList.remove('hidden');
+
+        // Populate FA dropdowns if commissioner
+        if (isCommissioner) {
+            await loadFaDropdowns();
+        }
     } catch (err) {
         document.getElementById('rosters-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
     }
-});
+}
+
+async function loadFaDropdowns() {
+    try {
+        // Load players
+        const players = await apiGet('/api/auth/players');
+        const playerSel = document.getElementById('fa-player');
+        playerSel.innerHTML = '<option value="">Select player...</option>';
+        for (const p of players) {
+            playerSel.innerHTML += `<option value="${p.id}">${p.display_name}</option>`;
+        }
+
+        // Load active castaways
+        const castaways = await apiGet(`/api/seasons/${currentSeasonId}/castaways`);
+        const castawaySel = document.getElementById('fa-castaway');
+        castawaySel.innerHTML = '<option value="">Select castaway...</option>';
+        for (const c of castaways) {
+            if (c.status !== 'active') continue;
+            castawaySel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        }
+    } catch (err) {
+        console.error('Failed to load FA dropdowns:', err);
+    }
+}
+
+async function submitFreeAgent() {
+    const alertBox = document.getElementById('rosters-alert');
+    const playerId = document.getElementById('fa-player').value;
+    const castawayId = document.getElementById('fa-castaway').value;
+    const episode = document.getElementById('fa-episode').value;
+
+    if (!playerId || !castawayId || !episode) {
+        showAlert(alertBox, 'Fill in all fields: player, castaway, and episode number.');
+        return;
+    }
+
+    const btn = document.getElementById('fa-submit-btn');
+    btn.disabled = true;
+
+    try {
+        const result = await apiPost(`/api/seasons/${currentSeasonId}/rosters/free-agent`, {
+            fantasy_player_id: parseInt(playerId),
+            castaway_id: parseInt(castawayId),
+            picked_up_after_episode: parseInt(episode),
+        });
+        showAlert(alertBox, `${result.player_name} picked up ${result.castaway_name} as a free agent!`, 'success');
+
+        // Reload rosters to show the new pickup
+        document.getElementById('rosters-content').classList.add('hidden');
+        document.getElementById('rosters-loading').classList.remove('hidden');
+        document.getElementById('rosters-loading').innerHTML = '<span class="spinner"></span> Loading...';
+        await loadRosters();
+    } catch (err) {
+        showAlert(alertBox, `Free agent error: ${err.message}`);
+    } finally {
+        btn.disabled = false;
+    }
+}
 </script>
 {% endblock %}
