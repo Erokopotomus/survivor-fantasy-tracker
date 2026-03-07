@@ -447,14 +447,38 @@ function showAiNotes(result) {
     const content = document.getElementById('ai-notes-content');
 
     let html = '';
+
+    // Episode highlights
+    const h = result.episode_highlights || {};
+    if (Object.keys(h).length > 0) {
+        const labels = {
+            reward_challenge: 'Reward Challenge',
+            immunity_challenge: 'Immunity Challenge',
+            went_to_tribal: 'Went to Tribal',
+            voted_out: 'Voted Out',
+            idols_advantages: 'Idols / Advantages',
+            tribe_compositions: 'Tribe Rosters',
+        };
+        html += '<div style="margin-bottom:1rem;">';
+        for (const [key, label] of Object.entries(labels)) {
+            if (h[key]) {
+                const icon = key === 'voted_out' ? '&#x1F6A8;' :
+                             key === 'reward_challenge' ? '&#x1F3C6;' :
+                             key === 'immunity_challenge' ? '&#x1F6E1;' :
+                             key === 'went_to_tribal' ? '&#x1F525;' :
+                             key === 'idols_advantages' ? '&#x1F48E;' :
+                             key === 'tribe_compositions' ? '&#x1F465;' : '&#x2022;';
+                html += `<p style="margin:0.25rem 0;"><span style="margin-right:0.4rem;">${icon}</span><strong>${label}:</strong> ${escapeHtml(h[key])}</p>`;
+            }
+        }
+        html += '</div>';
+    }
+
     if (result.episode_summary) {
         html += `<p><strong>Summary:</strong> ${escapeHtml(result.episode_summary)}</p>`;
     }
-    if (result.eliminated && result.eliminated.length > 0) {
-        html += `<p><strong>Eliminated:</strong> ${result.eliminated.map(escapeHtml).join(', ')}</p>`;
-    }
     if (result.notes) {
-        html += `<p><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
+        html += `<p style="font-size:0.85rem;color:var(--text-muted);"><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
     }
     html += `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
         <span style="display:inline-block;width:12px;height:12px;border:2px solid #d4930d;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>

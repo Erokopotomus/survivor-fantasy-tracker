@@ -117,6 +117,14 @@ OUTPUT FORMAT (valid JSON, no markdown):
     }}
   ],
   "episode_summary": "Brief 1-2 sentence summary of the episode",
+  "episode_highlights": {{
+    "reward_challenge": "Which tribe(s) won reward, and what the reward was. e.g. 'Tuku won 1st, Gata won 2nd'",
+    "immunity_challenge": "Which tribe(s) won immunity. e.g. 'Lavo won 1st, Tuku won 2nd'",
+    "went_to_tribal": "Which tribe(s) went to tribal council",
+    "voted_out": "Who was voted out and by what vote (if known). e.g. 'Jon voted out 4-2'",
+    "idols_advantages": "Any idols found, played, or advantages used. 'None' if nothing happened",
+    "tribe_compositions": "Current tribe rosters after any swaps/changes. e.g. 'Tuku: Alice, Bob, Carol | Gata: Dan, Eve, Frank'"
+  }},
   "eliminated": ["Name of eliminated castaway(s)"],
   "notes": "Any caveats about the scoring suggestions"
 }}"""
@@ -295,6 +303,7 @@ async def generate_scoring_suggestions(
         "episode_title": ai_response.get("episode_title", ""),
         "episode_description": ai_response.get("episode_description", ""),
         "episode_summary": ai_response.get("episode_summary", ""),
+        "episode_highlights": ai_response.get("episode_highlights", {}),
         "eliminated": ai_response.get("eliminated", []),
         "notes": ai_response.get("notes", ""),
     }

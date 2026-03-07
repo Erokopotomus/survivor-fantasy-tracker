@@ -109,5 +109,6 @@ class AiScoringResponse(BaseModel):
     episode_title: str = ""
     episode_description: str = ""
     episode_summary: str = ""
+    episode_highlights: dict = {}
     eliminated: list[str] = []
     notes: str = ""
