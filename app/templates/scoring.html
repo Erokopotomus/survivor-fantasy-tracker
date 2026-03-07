@@ -366,8 +366,12 @@ function renderGrid(template) {
 
     // AI notes card (hidden until results come back)
     html += `<div id="ai-notes-card" class="card hidden" style="margin-top:1rem;border:1px solid #7c3aed;">
-        <h3 class="card-header" style="color:#a78bfa;">AI Notes</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 class="card-header" style="color:#a78bfa;margin:0;">Episode Highlights</h3>
+            <button class="btn btn-outline" onclick="toggleEditHighlights()" id="edit-highlights-btn" style="padding:0.3rem 0.75rem;font-size:0.8rem;">Edit</button>
+        </div>
         <div id="ai-notes-content"></div>
+        <div id="ai-notes-edit" class="hidden" style="margin-top:0.5rem;"></div>
     </div>`;
 
     container.innerHTML = html;
@@ -442,51 +446,100 @@ function populateGridFromAi(suggestions) {
     }
 }
 
+let currentHighlights = {};
+const highlightLabels = {
+    reward_challenge: 'Reward Challenge',
+    immunity_challenge: 'Immunity Challenge',
+    went_to_tribal: 'Went to Tribal',
+    voted_out: 'Voted Out',
+    idols_advantages: 'Idols / Advantages',
+    tribe_compositions: 'Tribe Rosters',
+};
+const highlightIcons = {
+    reward_challenge: '&#x1F3C6;',
+    immunity_challenge: '&#x1F6E1;',
+    went_to_tribal: '&#x1F525;',
+    voted_out: '&#x1F6A8;',
+    idols_advantages: '&#x1F48E;',
+    tribe_compositions: '&#x1F465;',
+};
+
 function showAiNotes(result) {
     const card = document.getElementById('ai-notes-card');
     const content = document.getElementById('ai-notes-content');
+    currentHighlights = result.episode_highlights || {};
 
-    let html = '';
+    renderHighlightsDisplay();
 
-    // Episode highlights
-    const h = result.episode_highlights || {};
-    if (Object.keys(h).length > 0) {
-        const labels = {
-            reward_challenge: 'Reward Challenge',
-            immunity_challenge: 'Immunity Challenge',
-            went_to_tribal: 'Went to Tribal',
-            voted_out: 'Voted Out',
-            idols_advantages: 'Idols / Advantages',
-            tribe_compositions: 'Tribe Rosters',
-        };
-        html += '<div style="margin-bottom:1rem;">';
-        for (const [key, label] of Object.entries(labels)) {
-            if (h[key]) {
-                const icon = key === 'voted_out' ? '&#x1F6A8;' :
-                             key === 'reward_challenge' ? '&#x1F3C6;' :
-                             key === 'immunity_challenge' ? '&#x1F6E1;' :
-                             key === 'went_to_tribal' ? '&#x1F525;' :
-                             key === 'idols_advantages' ? '&#x1F48E;' :
-                             key === 'tribe_compositions' ? '&#x1F465;' : '&#x2022;';
-                html += `<p style="margin:0.25rem 0;"><span style="margin-right:0.4rem;">${icon}</span><strong>${label}:</strong> ${escapeHtml(h[key])}</p>`;
-            }
-        }
-        html += '</div>';
-    }
-
+    let extra = '';
     if (result.episode_summary) {
-        html += `<p><strong>Summary:</strong> ${escapeHtml(result.episode_summary)}</p>`;
+        extra += `<p><strong>Summary:</strong> ${escapeHtml(result.episode_summary)}</p>`;
     }
     if (result.notes) {
-        html += `<p style="font-size:0.85rem;color:var(--text-muted);"><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
+        extra += `<p style="font-size:0.85rem;color:var(--text-muted);"><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
     }
-    html += `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
+    extra += `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
         <span style="display:inline-block;width:12px;height:12px;border:2px solid #d4930d;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>
         Gold-bordered cells = low confidence. Verify before submitting.
     </p>`;
 
-    content.innerHTML = html;
+    // Append extra after highlights
+    content.innerHTML += extra;
     card.classList.remove('hidden');
+}
+
+function renderHighlightsDisplay() {
+    const content = document.getElementById('ai-notes-content');
+    let html = '';
+    if (Object.keys(currentHighlights).length > 0) {
+        html += '<div id="highlights-display" style="margin-bottom:1rem;">';
+        for (const [key, label] of Object.entries(highlightLabels)) {
+            if (currentHighlights[key]) {
+                html += `<p style="margin:0.25rem 0;"><span style="margin-right:0.4rem;">${highlightIcons[key]}</span><strong>${label}:</strong> ${escapeHtml(currentHighlights[key])}</p>`;
+            }
+        }
+        html += '</div>';
+    }
+    content.innerHTML = html;
+}
+
+function toggleEditHighlights() {
+    const editDiv = document.getElementById('ai-notes-edit');
+    const btn = document.getElementById('edit-highlights-btn');
+    if (!editDiv.classList.contains('hidden')) {
+        editDiv.classList.add('hidden');
+        btn.textContent = 'Edit';
+        return;
+    }
+    let html = '';
+    for (const [key, label] of Object.entries(highlightLabels)) {
+        html += `<div class="form-group" style="margin-bottom:0.5rem;">
+            <label style="font-size:0.8rem;">${label}</label>
+            <input type="text" id="hl-${key}" value="${escapeHtml(currentHighlights[key] || '')}" style="width:100%;">
+        </div>`;
+    }
+    html += `<button class="btn" onclick="saveHighlights()" style="padding:0.4rem 1rem;font-size:0.85rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">Save Highlights</button>`;
+    editDiv.innerHTML = html;
+    editDiv.classList.remove('hidden');
+    btn.textContent = 'Cancel';
+}
+
+function saveHighlights() {
+    for (const key of Object.keys(highlightLabels)) {
+        const input = document.getElementById(`hl-${key}`);
+        if (input) {
+            currentHighlights[key] = input.value.trim();
+            if (!currentHighlights[key]) delete currentHighlights[key];
+        }
+    }
+    renderHighlightsDisplay();
+    // Re-append the extra notes below
+    const content = document.getElementById('ai-notes-content');
+    const extra = content.querySelectorAll(':scope > p');
+    // highlights display is re-rendered, extra <p> tags were wiped — they'll be there from initial render
+    document.getElementById('ai-notes-edit').classList.add('hidden');
+    document.getElementById('edit-highlights-btn').textContent = 'Edit';
+    showAlert(document.getElementById('scoring-alert'), 'Highlights updated.', 'success');
 }
 
 function escapeHtml(str) {

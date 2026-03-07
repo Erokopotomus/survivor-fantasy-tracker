@@ -254,6 +254,52 @@ def parse_ai_suggestions(
     return results
 
 
+async def fetch_episode_recap(season_number: int, episode_number: int) -> str | None:
+    """Search the web for an episode recap and return text summary.
+
+    Uses Google search to find recap info, then fetches the top result.
+    Returns None if anything fails (non-critical — scoring still works without it).
+    """
+    query = f"Survivor season {season_number} episode {episode_number} recap who was voted out"
+    search_url = "https://www.google.com/search"
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                search_url,
+                params={"q": query},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; SurvivorFantasyBot/1.0)"},
+            )
+            resp.raise_for_status()
+
+            # Extract text snippets from search results HTML
+            import re
+            html = resp.text
+            # Pull snippet text from search result divs
+            snippets = re.findall(r'<span[^>]*>(.*?)</span>', html)
+            # Clean HTML tags and collect useful text
+            text_parts = []
+            for s in snippets:
+                clean = re.sub(r'<[^>]+>', '', s).strip()
+                if len(clean) > 40 and any(
+                    kw in clean.lower()
+                    for kw in ['voted', 'eliminated', 'immunity', 'tribal', 'reward',
+                               'challenge', 'idol', 'survivor', 'episode', 'tribe']
+                ):
+                    text_parts.append(clean)
+
+            if text_parts:
+                recap = "\n".join(text_parts[:15])  # Top 15 relevant snippets
+                logger.info("Auto-fetched web recap (%d snippets) for S%dE%d",
+                           len(text_parts[:15]), season_number, episode_number)
+                return recap
+
+    except Exception as e:
+        logger.warning("Web recap fetch failed (non-critical): %s", e)
+
+    return None
+
+
 async def generate_scoring_suggestions(
     db: AsyncSession,
     season_id: int,
@@ -284,6 +330,12 @@ async def generate_scoring_suggestions(
 
     # Load active rules
     rules = await get_active_rules(db, season_id)
+
+    # Auto-fetch web recap if user didn't provide one
+    if not recap_text or not recap_text.strip():
+        web_recap = await fetch_episode_recap(season.season_number, episode.episode_number)
+        if web_recap:
+            recap_text = f"[Auto-fetched from web search results]\n{web_recap}"
 
     # Build prompt
     system_prompt, user_prompt = build_scoring_prompt(
