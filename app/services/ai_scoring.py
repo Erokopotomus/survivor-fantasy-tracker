@@ -257,45 +257,76 @@ def parse_ai_suggestions(
 async def fetch_episode_recap(season_number: int, episode_number: int) -> str | None:
     """Search the web for an episode recap and return text summary.
 
-    Uses Google search to find recap info, then fetches the top result.
-    Returns None if anything fails (non-critical — scoring still works without it).
+    Tries multiple sources: DuckDuckGo HTML search, then Survivor Wiki.
+    Returns None if everything fails (non-critical — scoring still works without it).
     """
-    query = f"Survivor season {season_number} episode {episode_number} recap who was voted out"
-    search_url = "https://www.google.com/search"
+    import re
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(
+        timeout=20.0,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+        follow_redirects=True,
+    ) as client:
+
+        # --- Attempt 1: DuckDuckGo HTML lite ---
+        try:
+            query = f"Survivor season {season_number} episode {episode_number} recap voted out eliminated"
             resp = await client.get(
-                search_url,
+                "https://html.duckduckgo.com/html/",
                 params={"q": query},
-                headers={"User-Agent": "Mozilla/5.0 (compatible; SurvivorFantasyBot/1.0)"},
             )
             resp.raise_for_status()
-
-            # Extract text snippets from search results HTML
-            import re
             html = resp.text
-            # Pull snippet text from search result divs
-            snippets = re.findall(r'<span[^>]*>(.*?)</span>', html)
-            # Clean HTML tags and collect useful text
+
+            # Extract result snippets from DuckDuckGo HTML
+            snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.DOTALL)
             text_parts = []
             for s in snippets:
                 clean = re.sub(r'<[^>]+>', '', s).strip()
-                if len(clean) > 40 and any(
-                    kw in clean.lower()
-                    for kw in ['voted', 'eliminated', 'immunity', 'tribal', 'reward',
-                               'challenge', 'idol', 'survivor', 'episode', 'tribe']
-                ):
+                if len(clean) > 30:
                     text_parts.append(clean)
 
             if text_parts:
-                recap = "\n".join(text_parts[:15])  # Top 15 relevant snippets
-                logger.info("Auto-fetched web recap (%d snippets) for S%dE%d",
-                           len(text_parts[:15]), season_number, episode_number)
+                recap = "\n".join(text_parts[:10])
+                logger.info("DuckDuckGo recap fetched (%d snippets) for S%dE%d",
+                           len(text_parts[:10]), season_number, episode_number)
                 return recap
 
-    except Exception as e:
-        logger.warning("Web recap fetch failed (non-critical): %s", e)
+        except Exception as e:
+            logger.warning("DuckDuckGo fetch failed: %s", e)
+
+        # --- Attempt 2: Fetch a recap article directly ---
+        try:
+            # Try fetching from Surviving Tribal (common recap site)
+            resp = await client.get(
+                f"https://www.google.com/search",
+                params={"q": f"site:survivingtribal.com OR site:ew.com Survivor {season_number} episode {episode_number} recap"},
+            )
+            # Extract URLs from results
+            urls = re.findall(r'https?://(?:www\.)?(?:survivingtribal|ew)\.com/[^\s"<>]+', resp.text)
+            for url in urls[:2]:
+                try:
+                    article = await client.get(url)
+                    article.raise_for_status()
+                    # Strip HTML tags, get text
+                    text = re.sub(r'<script[^>]*>.*?</script>', '', article.text, flags=re.DOTALL)
+                    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+                    text = re.sub(r'<[^>]+>', ' ', text)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    # Take a relevant chunk (first 3000 chars after finding "episode" keyword)
+                    lower = text.lower()
+                    start = lower.find('episode')
+                    if start == -1:
+                        start = 0
+                    chunk = text[start:start + 3000]
+                    if len(chunk) > 200:
+                        logger.info("Article recap fetched from %s for S%dE%d", url, season_number, episode_number)
+                        return chunk
+                except Exception:
+                    continue
+
+        except Exception as e:
+            logger.warning("Article fetch failed: %s", e)
 
     return None
 
