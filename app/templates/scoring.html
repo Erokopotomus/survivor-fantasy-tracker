@@ -12,6 +12,7 @@
         <select id="episode-select"><option value="">Loading...</option></select>
         <button class="btn btn-outline" onclick="loadTemplate()">Load Template</button>
         <button class="btn btn-green" onclick="createNewEpisode()">+ New Episode</button>
+        <button class="btn" onclick="deleteEpisode()" id="delete-ep-btn" style="background:#e74c3c;border:none;display:none;">Delete Episode</button>
     </div>
 
     <div id="new-episode-form" class="card hidden">
@@ -90,6 +91,43 @@ async function loadEpisodes() {
     for (const ep of eps) {
         const scored = ep.is_scored ? ' [SCORED]' : '';
         sel.innerHTML += `<option value="${ep.id}">Ep ${ep.episode_number}: ${ep.title || 'Untitled'}${scored}</option>`;
+    }
+    toggleDeleteBtn();
+}
+
+// Show/hide delete button based on episode selection
+document.getElementById('episode-select').addEventListener('change', toggleDeleteBtn);
+
+function toggleDeleteBtn() {
+    const btn = document.getElementById('delete-ep-btn');
+    btn.style.display = document.getElementById('episode-select').value ? 'inline-block' : 'none';
+}
+
+async function deleteEpisode() {
+    const sel = document.getElementById('episode-select');
+    const epId = sel.value;
+    if (!epId) return;
+    const epText = sel.options[sel.selectedIndex].text;
+
+    if (!confirm(`Delete "${epText}"? This will remove all scoring data for this episode.`)) return;
+
+    const alertBox = document.getElementById('scoring-alert');
+    try {
+        const auth = getAuth();
+        const resp = await fetch(`/api/seasons/${currentSeasonId}/episodes/${epId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${auth.access_token}` },
+        });
+        if (!resp.ok && resp.status !== 204) {
+            const err = await resp.json();
+            throw new Error(err.detail || 'Delete failed');
+        }
+        showAlert(alertBox, `${epText} deleted.`, 'success');
+        document.getElementById('scoring-grid-container').classList.add('hidden');
+        document.getElementById('scoring-grid-container').innerHTML = '';
+        await loadEpisodes();
+    } catch (err) {
+        showAlert(alertBox, `Delete error: ${err.message}`);
     }
 }
 
