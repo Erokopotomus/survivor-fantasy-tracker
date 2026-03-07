@@ -33,6 +33,7 @@ SurvivorTracker/
 │   │   └── models.py        # All 8 SQLAlchemy models + enums
 │   ├── schemas/              # Pydantic schemas (auth, seasons, castaways, episodes, rules, rosters, leaderboard, predictions)
 │   ├── services/
+│   │   ├── ai_scoring.py    # Claude API: scoring suggestions, vision confessionals, web recap fetch
 │   │   ├── scoring_engine.py # Core scoring logic, leaderboard, recalculate
 │   │   └── rule_seeder.py   # 30 default rules + seed/copy functions
 │   ├── scripts/
@@ -83,16 +84,42 @@ setup → drafting → active ⇄ complete
 - **complete**: Resolve predictions, final standings (can reopen to active)
 
 ## Commissioner Weekly Workflow
-1. `POST /api/seasons/{id}/episodes` — Create the episode
+1. `POST /api/seasons/{id}/episodes` — Create the episode (or use AI create below)
 2. `GET /api/seasons/{id}/episodes/{id}/template` — Get blank scoring form (all rules + active castaways)
 3. `POST /api/seasons/{id}/episodes/{id}/score` — Submit events (JSON: `{castaway_id: {rule_key: value}}`), scores auto-calculate
 4. `GET /api/seasons/{id}/leaderboard` — Check updated standings
+5. `DELETE /api/seasons/{id}/episodes/{id}` — Delete episode + cascade all scoring data (red button on scoring page)
+
+## AI Scoring Features
+
+### AI Episode Create + Score
+- **Endpoint**: `POST /api/seasons/{id}/episodes/ai-create`
+- Creates episode, auto-fetches web recap (DuckDuckGo → article fallback), calls Claude to pre-fill scoring grid
+- Returns structured `episode_highlights` (reward/immunity winners, tribal, voted out, idols, tribe rosters)
+- Highlights are editable in the UI for corrections before submitting
+- Confessional screenshot can be attached — parsed via Claude Vision after AI scoring
+
+### AI Suggest (existing episode)
+- **Endpoint**: `POST /api/seasons/{id}/episodes/{id}/ai-suggest`
+- Re-runs AI scoring on an already-created episode (useful if first attempt was wrong)
+
+### Confessional Count Vision
+- **Endpoint**: `POST /api/seasons/{id}/episodes/{id}/parse-confessionals`
+- Upload PNG/JPEG/WebP screenshot (max 2MB) of confessional count table
+- Claude Vision extracts counts, fuzzy-matches names to active castaways
+
+### Web Recap Auto-Fetch
+- `ai_scoring.py:fetch_episode_recap()` — auto-searches DuckDuckGo for episode recap when no recap text provided
+- Falls back to fetching full articles from recap sites
+- Non-critical: scoring works without it (AI just guesses based on typical patterns)
+- For best accuracy, commissioner can paste recap text manually in the Episode Recap field
 
 ## Environment Variables
 ```bash
 DATABASE_URL=postgresql://...          # Railway provides this (auto-transformed to +asyncpg)
 SECRET_KEY=<random-string>             # JWT signing key
 COMMISSIONER_KEY=<random-string>       # Required to register as commissioner
+ANTHROPIC_API_KEY=<api-key>            # Required for AI scoring, vision confessionals
 DEBUG=False                            # SQLAlchemy echo (optional)
 ```
 
