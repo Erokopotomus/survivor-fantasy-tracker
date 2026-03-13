@@ -205,7 +205,7 @@ async function aiCreateEpisode() {
         await loadTemplate();
 
         // Pre-fill the grid with AI suggestions
-        populateGridFromAi(result.suggestions);
+        populateGridFromAi(result.suggestions, result.eliminated);
         showAiNotes(result);
 
         const title = result.episode_title ? ` — "${result.episode_title}"` : '';
@@ -288,6 +288,11 @@ async function loadTemplate() {
                             input.value = value;
                         }
                     }
+                    // Populate status dropdown from current castaway status
+                    if (ev.status) {
+                        const statusSelect = row.querySelector('[data-status]');
+                        if (statusSelect) statusSelect.value = ev.status;
+                    }
                 }
                 showAlert(document.getElementById('scoring-alert'), `Loaded existing scores for ${existing.events.length} castaways. Edit and re-submit as needed.`, 'success');
             }
@@ -315,6 +320,7 @@ function renderGrid(template) {
         const tooltip = `${rule.rule_name} (${rule.points > 0 ? '+' : ''}${rule.points} pts, ${rule.multiplier})`;
         html += `<th class="rule-header" title="${tooltip}">${rule.rule_name}</th>`;
     }
+    html += '<th class="rule-header" title="Update castaway status after this episode">Status</th>';
     html += '</tr></thead><tbody>';
 
     // Castaway rows
@@ -332,6 +338,12 @@ function renderGrid(template) {
                 html += `<td><input type="number" data-rule="${rule.rule_key}" value="${defaultVal}" min="0" step="1"></td>`;
             }
         }
+        html += `<td><select data-status style="width:90px;padding:0.3rem;text-align:center">
+            <option value="active">Active</option>
+            <option value="eliminated">Voted Out</option>
+            <option value="evacuated">Evacuated</option>
+            <option value="quit">Quit</option>
+        </select></td>`;
         html += '</tr>';
     }
 
@@ -402,7 +414,7 @@ async function runAiScoring() {
             `/api/seasons/${currentSeasonId}/episodes/${epId}/ai-suggest`,
             { recap_text: recapText || null }
         );
-        populateGridFromAi(result.suggestions);
+        populateGridFromAi(result.suggestions, result.eliminated);
         showAiNotes(result);
         hideAiPanel();
         showAlert(alertBox, `AI filled ${result.suggestions.length} castaways. Review and adjust before submitting.`, 'success');
@@ -414,12 +426,15 @@ async function runAiScoring() {
     }
 }
 
-function populateGridFromAi(suggestions) {
+function populateGridFromAi(suggestions, eliminated) {
     // Clear any previous AI highlights
     document.querySelectorAll('.ai-highlight').forEach(el => {
         el.classList.remove('ai-highlight');
         el.removeAttribute('title');
     });
+
+    // Build set of eliminated names for status auto-fill
+    const eliminatedNames = new Set((eliminated || []).map(n => n.toLowerCase()));
 
     for (const s of suggestions) {
         const row = document.querySelector(`tr[data-castaway-id="${s.castaway_id}"]`);
@@ -442,6 +457,12 @@ function populateGridFromAi(suggestions) {
                 cell.classList.add('ai-highlight');
                 cell.title = note;
             }
+        }
+
+        // Auto-set status to eliminated if AI flagged them
+        if (eliminatedNames.has(s.castaway_name.toLowerCase())) {
+            const statusSelect = row.querySelector('[data-status]');
+            if (statusSelect) statusSelect.value = 'eliminated';
         }
     }
 }
@@ -614,7 +635,9 @@ async function submitScores() {
             const val = input.tagName === 'SELECT' ? parseInt(input.value) : parseFloat(input.value) || 0;
             eventData[key] = val;
         });
-        events.push({ castaway_id: castawayId, event_data: eventData });
+        const statusSelect = row.querySelector('[data-status]');
+        const status = statusSelect ? statusSelect.value : null;
+        events.push({ castaway_id: castawayId, event_data: eventData, status });
     });
 
     try {

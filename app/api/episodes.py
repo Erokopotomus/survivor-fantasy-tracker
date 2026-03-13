@@ -141,12 +141,30 @@ async def get_scoring_template(
         for r in rules
     ]
 
-    # Active castaways
-    castaways_result = await db.execute(
-        select(Castaway)
-        .where(Castaway.season_id == season_id, Castaway.status == CastawayStatus.ACTIVE)
-        .order_by(Castaway.name)
-    )
+    # For scored episodes, include castaways who have events (even if now eliminated)
+    # For unscored episodes, only active castaways
+    if episode.is_scored:
+        # Get castaways with existing events + all active castaways
+        scored_ids_result = await db.execute(
+            select(CastawayEpisodeEvent.castaway_id)
+            .where(CastawayEpisodeEvent.episode_id == episode_id)
+        )
+        scored_ids = {row[0] for row in scored_ids_result.all()}
+
+        castaways_result = await db.execute(
+            select(Castaway)
+            .where(
+                Castaway.season_id == season_id,
+                (Castaway.status == CastawayStatus.ACTIVE) | (Castaway.id.in_(scored_ids))
+            )
+            .order_by(Castaway.name)
+        )
+    else:
+        castaways_result = await db.execute(
+            select(Castaway)
+            .where(Castaway.season_id == season_id, Castaway.status == CastawayStatus.ACTIVE)
+            .order_by(Castaway.name)
+        )
     castaway_items = [
         TemplateCastawayItem(
             castaway_id=c.id,
@@ -190,6 +208,7 @@ async def get_episode_scores(
                 "castaway_id": castaway.id,
                 "castaway_name": castaway.name,
                 "event_data": event.event_data or {},
+                "status": castaway.status.value if isinstance(castaway.status, CastawayStatus) else castaway.status,
             }
             for event, castaway in events
         ],
@@ -233,11 +252,17 @@ async def submit_episode_scores(
 
         score = await score_episode_event(db, event, rules=rules, episode=episode)
 
-        # Get castaway name
+        # Get castaway and update status if provided
         castaway_result = await db.execute(
             select(Castaway).where(Castaway.id == event_input.castaway_id)
         )
         castaway = castaway_result.scalar_one()
+
+        if event_input.status:
+            try:
+                castaway.status = CastawayStatus(event_input.status)
+            except ValueError:
+                pass  # Ignore invalid status values
 
         scores.append(CastawayScoreResult(
             castaway_id=castaway.id,

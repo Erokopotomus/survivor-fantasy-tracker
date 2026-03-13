@@ -50,6 +50,7 @@ class CastawayEventInput(BaseModel):
     castaway_id: int
     event_data: dict
     notes: str | None = None
+    status: str | None = None  # "active", "eliminated", "evacuated", "quit" — updates castaway status on submit
 
 
 class EpisodeScoreSubmit(BaseModel):
