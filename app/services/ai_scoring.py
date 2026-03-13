@@ -97,8 +97,8 @@ INSTRUCTIONS:
 - Per-instance rules: use the count (0 if none).
 - For "confessional_count": always set to 0. The commissioner will upload a screenshot to fill real counts.
 - If no recap is provided, make your best guess based on typical Survivor episode patterns and flag uncertain values.
-- "survive_tribal" = 1 for everyone who was NOT voted out/eliminated this episode.
-- Only the eliminated castaway(s) get survive_tribal = 0.
+- "survive_tribal" = 1 ONLY for castaways who attended tribal council and were NOT voted out. Castaways whose tribe won immunity and did NOT go to tribal get survive_tribal = 0.
+- The eliminated castaway(s) also get survive_tribal = 0.
 
 OUTPUT FORMAT (valid JSON, no markdown):
 {{
