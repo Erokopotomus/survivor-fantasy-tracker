@@ -170,6 +170,7 @@ async def get_scoring_template(
             castaway_id=c.id,
             castaway_name=c.name,
             status=c.status.value if isinstance(c.status, CastawayStatus) else c.status,
+            tribe=c.current_tribe or c.starting_tribe,
         )
         for c in castaways_result.scalars().all()
     ]
@@ -209,6 +210,7 @@ async def get_episode_scores(
                 "castaway_name": castaway.name,
                 "event_data": event.event_data or {},
                 "status": castaway.status.value if isinstance(castaway.status, CastawayStatus) else castaway.status,
+                "tribe": castaway.current_tribe or castaway.starting_tribe,
             }
             for event, castaway in events
         ],

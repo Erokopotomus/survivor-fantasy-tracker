@@ -81,6 +81,7 @@ class TemplateCastawayItem(BaseModel):
     castaway_id: int
     castaway_name: str
     status: str
+    tribe: str | None = None
 
 
 class ScoringTemplateResponse(BaseModel):

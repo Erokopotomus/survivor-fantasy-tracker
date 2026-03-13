@@ -307,12 +307,52 @@ async function loadTemplate() {
     }
 }
 
+// Tribe color palette — visually distinct, works on dark backgrounds
+const TRIBE_COLORS = [
+    { bg: 'rgba(231, 76, 60, 0.15)', border: '#e74c3c', text: '#e74c3c' },   // Red
+    { bg: 'rgba(52, 152, 219, 0.15)', border: '#3498db', text: '#3498db' },   // Blue
+    { bg: 'rgba(241, 196, 15, 0.15)', border: '#f1c40f', text: '#f1c40f' },   // Yellow
+    { bg: 'rgba(46, 204, 113, 0.15)', border: '#2ecc71', text: '#2ecc71' },   // Green
+    { bg: 'rgba(230, 126, 34, 0.15)', border: '#e67e22', text: '#e67e22' },   // Orange
+    { bg: 'rgba(155, 89, 182, 0.15)', border: '#9b59b6', text: '#9b59b6' },   // Purple
+    { bg: 'rgba(26, 188, 156, 0.15)', border: '#1abc9c', text: '#1abc9c' },   // Teal
+    { bg: 'rgba(236, 140, 180, 0.15)', border: '#ec8cb4', text: '#ec8cb4' },  // Pink
+];
+
 function renderGrid(template) {
     const container = document.getElementById('scoring-grid-container');
     const rules = template.rules;
     const castaways = template.castaways;
 
-    let html = '<div class="scoring-grid"><table>';
+    // Build tribe color map
+    const tribes = [...new Set(castaways.map(c => c.tribe).filter(Boolean))].sort();
+    const tribeColorMap = {};
+    tribes.forEach((tribe, i) => {
+        tribeColorMap[tribe] = TRIBE_COLORS[i % TRIBE_COLORS.length];
+    });
+
+    // Tribe legend
+    let html = '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;">';
+    for (const tribe of tribes) {
+        const color = tribeColorMap[tribe];
+        html += `<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border-radius:4px;background:${color.bg};border:2px solid ${color.border};">
+            <strong style="color:${color.text};font-size:0.85rem;">${tribe}</strong>
+        </div>`;
+    }
+    if (tribes.length === 0) {
+        html += '<span style="color:var(--text-muted);font-size:0.85rem;">No tribe data — update castaways\' current_tribe</span>';
+    }
+    html += '</div>';
+
+    // Sort castaways by tribe then name
+    const sorted = [...castaways].sort((a, b) => {
+        const ta = a.tribe || 'zzz';
+        const tb = b.tribe || 'zzz';
+        if (ta !== tb) return ta.localeCompare(tb);
+        return a.castaway_name.localeCompare(b.castaway_name);
+    });
+
+    html += '<div class="scoring-grid"><table>';
 
     // Header row
     html += '<thead><tr><th style="position:sticky;left:0;background:var(--bg-input);z-index:25;vertical-align:bottom;padding-bottom:0.5rem;">Castaway</th>';
@@ -323,10 +363,21 @@ function renderGrid(template) {
     html += '<th class="rule-header" title="Update castaway status after this episode">Status</th>';
     html += '</tr></thead><tbody>';
 
-    // Castaway rows
-    for (const c of castaways) {
-        html += `<tr data-castaway-id="${c.castaway_id}">`;
-        html += `<td class="castaway-name">${c.castaway_name}</td>`;
+    // Castaway rows grouped by tribe
+    let lastTribe = null;
+    for (const c of sorted) {
+        const tribe = c.tribe || 'Unknown';
+        const color = tribeColorMap[tribe] || { bg: 'transparent', border: 'var(--border-color)', text: 'var(--text-muted)' };
+
+        // Tribe separator row
+        if (tribe !== lastTribe) {
+            const colSpan = rules.length + 2;
+            html += `<tr><td colspan="${colSpan}" style="background:${color.bg};border-left:3px solid ${color.border};padding:0.3rem 0.75rem;font-weight:700;color:${color.text};font-size:0.8rem;">${tribe}</td></tr>`;
+            lastTribe = tribe;
+        }
+
+        html += `<tr data-castaway-id="${c.castaway_id}" style="border-left:3px solid ${color.border};">`;
+        html += `<td class="castaway-name" style="color:${color.text};font-weight:600;">${c.castaway_name}</td>`;
         for (const rule of rules) {
             const isBinary = rule.multiplier === 'binary';
             const defaultVal = 0;
