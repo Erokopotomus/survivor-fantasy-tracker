@@ -11,7 +11,7 @@ from sqlalchemy import select
 from app.models.models import (
     ScoringRule, CastawayEpisodeEvent, Episode, Castaway,
     FantasyRoster, FantasyPlayer, Prediction, Season,
-    RuleMultiplier, RulePhase
+    RuleMultiplier, RulePhase, PickupType
 )
 
 
@@ -137,6 +137,32 @@ async def get_castaway_season_total(db: AsyncSession, castaway_id: int, season_i
     return round(sum(e.calculated_score or 0 for e in events), 2)
 
 
+async def get_rostered_castaway_total(
+    db: AsyncSession,
+    castaway_id: int,
+    season_id: int,
+    picked_up_after_episode: int | None = None,
+) -> float:
+    """
+    Sum episode scores for a castaway, optionally only counting episodes
+    after the pickup episode (for free agent pickups).
+    """
+    query = (
+        select(CastawayEpisodeEvent)
+        .join(Episode)
+        .where(
+            CastawayEpisodeEvent.castaway_id == castaway_id,
+            Episode.season_id == season_id,
+        )
+    )
+    if picked_up_after_episode is not None:
+        query = query.where(Episode.episode_number > picked_up_after_episode)
+
+    result = await db.execute(query)
+    events = result.scalars().all()
+    return round(sum(e.calculated_score or 0 for e in events), 2)
+
+
 async def get_fantasy_player_total(
     db: AsyncSession,
     fantasy_player_id: int,
@@ -144,6 +170,7 @@ async def get_fantasy_player_total(
 ) -> dict:
     """
     Calculate a fantasy player's total score across all their rostered castaways.
+    For free agent pickups, only counts scores from episodes after the pickup.
     Returns breakdown by castaway + grand total.
     """
     # Get their roster
@@ -161,7 +188,9 @@ async def get_fantasy_player_total(
     grand_total = 0.0
 
     for entry in roster_entries:
-        castaway_total = await get_castaway_season_total(db, entry.castaway_id, season_id)
+        # For free agents, only count scores from episodes after pickup
+        pickup_ep = entry.picked_up_after_episode if entry.pickup_type == PickupType.FREE_AGENT else None
+        castaway_total = await get_rostered_castaway_total(db, entry.castaway_id, season_id, pickup_ep)
 
         # Get castaway name
         castaway_result = await db.execute(select(Castaway).where(Castaway.id == entry.castaway_id))

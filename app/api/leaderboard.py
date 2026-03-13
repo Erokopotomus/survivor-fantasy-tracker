@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.models.models import (
     FantasyPlayer, Season, Castaway, CastawayStatus, Episode,
-    CastawayEpisodeEvent, FantasyRoster,
+    CastawayEpisodeEvent, FantasyRoster, PickupType,
 )
 from app.schemas.leaderboard import (
     LeaderboardResponse, LeaderboardEntry, CastawayBreakdownItem,
@@ -13,7 +13,7 @@ from app.schemas.leaderboard import (
     WeeklyRecapResponse, WeeklyRecapCastawayItem, WeeklyRecapPlayerItem,
 )
 from app.api.deps import get_current_user
-from app.services.scoring_engine import get_leaderboard, get_castaway_season_total
+from app.services.scoring_engine import get_leaderboard, get_castaway_season_total, get_rostered_castaway_total
 
 router = APIRouter(prefix="/api/seasons/{season_id}", tags=["Leaderboard"])
 
@@ -130,22 +130,28 @@ async def weekly_recap(
 
     player_standings = []
     for player in players:
-        # Get player's castaways
+        # Get player's roster entries (need pickup info for free agent filtering)
         roster_result = await db.execute(
-            select(FantasyRoster.castaway_id).where(
+            select(FantasyRoster).where(
                 FantasyRoster.fantasy_player_id == player.id,
                 FantasyRoster.season_id == season_id,
                 FantasyRoster.is_active == True,
             )
         )
-        castaway_ids = [row[0] for row in roster_result.all()]
+        roster_entries = roster_result.scalars().all()
 
         # Sum this episode's scores for the player's castaways
+        # (only if the pickup happened before this episode)
         ep_score = 0.0
-        for cid in castaway_ids:
+        for entry in roster_entries:
+            # Skip free agents picked up after this episode
+            if (entry.pickup_type == PickupType.FREE_AGENT
+                    and entry.picked_up_after_episode is not None
+                    and entry.picked_up_after_episode >= episode_number):
+                continue
             ev_result = await db.execute(
                 select(CastawayEpisodeEvent).where(
-                    CastawayEpisodeEvent.castaway_id == cid,
+                    CastawayEpisodeEvent.castaway_id == entry.castaway_id,
                     CastawayEpisodeEvent.episode_id == episode.id,
                 )
             )
@@ -153,10 +159,11 @@ async def weekly_recap(
             if ev:
                 ep_score += ev.calculated_score or 0
 
-        # Season total
+        # Season total (respects pickup timing for free agents)
         season_total = 0.0
-        for cid in castaway_ids:
-            total = await get_castaway_season_total(db, cid, season_id)
+        for entry in roster_entries:
+            pickup_ep = entry.picked_up_after_episode if entry.pickup_type == PickupType.FREE_AGENT else None
+            total = await get_rostered_castaway_total(db, entry.castaway_id, season_id, pickup_ep)
             season_total += total
 
         player_standings.append(WeeklyRecapPlayerItem(
