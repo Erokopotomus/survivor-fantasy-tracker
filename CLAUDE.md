@@ -85,10 +85,11 @@ setup → drafting → active ⇄ complete
 
 ## Commissioner Weekly Workflow
 1. `POST /api/seasons/{id}/episodes` — Create the episode (or use AI create below)
-2. `GET /api/seasons/{id}/episodes/{id}/template` — Get blank scoring form (all rules + active castaways)
-3. `POST /api/seasons/{id}/episodes/{id}/score` — Submit events (JSON: `{castaway_id: {rule_key: value}}`), scores auto-calculate
-4. `GET /api/seasons/{id}/leaderboard` — Check updated standings
-5. `DELETE /api/seasons/{id}/episodes/{id}` — Delete episode + cascade all scoring data (red button on scoring page)
+2. `GET /api/seasons/{id}/episodes/{id}/template` — Get blank scoring form (active castaways, tribe-grouped + color-coded)
+3. `POST /api/seasons/{id}/episodes/{id}/score` — Submit events + castaway status updates (JSON: `{castaway_id: {rule_key: value}, status: "eliminated"}`)
+4. Castaways marked eliminated/evacuated/quit are excluded from future episode scoring grids
+5. `GET /api/seasons/{id}/leaderboard` — Check updated standings
+6. `DELETE /api/seasons/{id}/episodes/{id}` — Delete episode + cascade all scoring data (red button on scoring page)
 
 ## AI Scoring Features
 
@@ -163,3 +164,7 @@ uvicorn app.main:app --reload
 - Season delete only allowed in `setup` status
 - Predictions only allowed during `setup` or `drafting`
 - Free agent pickups enforce `free_agent_pickup_limit` and `max_times_castaway_drafted` per season
+- Free agent scoring only counts episodes AFTER `picked_up_after_episode` — no retroactive points
+- `survive_tribal` rule: only awarded to castaways who attended tribal and survived (not everyone who wasn't voted out)
+- Scoring grid is tribe-grouped and color-coded; colors come from `TRIBE_COLORS` in `app.js` — do NOT redeclare that const in page scripts
+- Scoring template for scored episodes includes eliminated castaways (for re-editing); unscored episodes show only active castaways
