@@ -138,14 +138,14 @@ const TRIBE_COLORS = {
 
 // === Player Color Helpers ===
 const PLAYER_COLORS = {
-    'Eric':   { accent: '#2dd4a8', bg: 'rgba(10,35,28,0.9)' },
-    'Calvin': { accent: '#e8751a', bg: 'rgba(40,25,12,0.9)' },
-    'Jake':   { accent: '#a78bfa', bg: 'rgba(28,18,38,0.9)' },
-    'Josh':   { accent: '#f87171', bg: 'rgba(38,14,14,0.9)' },
+    'Eric':   { accent: '#0e8a6a', bg: 'rgba(14,138,106,0.06)' },
+    'Calvin': { accent: '#c9620e', bg: 'rgba(201,98,14,0.06)' },
+    'Jake':   { accent: '#6d4fc0', bg: 'rgba(109,79,192,0.06)' },
+    'Josh':   { accent: '#c93b3b', bg: 'rgba(201,59,59,0.06)' },
 };
 
 function getPlayerColor(name) {
-    return PLAYER_COLORS[name] || { accent: '#c4a265', bg: 'rgba(18,26,11,0.9)' };
+    return PLAYER_COLORS[name] || { accent: '#6b5a42', bg: 'rgba(107,90,66,0.06)' };
 }
 
 function getTribeColor(tribe) {
