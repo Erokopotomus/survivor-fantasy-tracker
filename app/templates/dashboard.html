@@ -2,7 +2,7 @@
 {% block title %}Dashboard - Survivor Fantasy{% endblock %}
 {% block content %}
 <div id="page-content">
-    <div id="season-status-bar" class="hidden" style="display:none;align-items:center;flex-wrap:wrap;gap:0.75rem 1rem;padding:0.75rem 1rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(196,180,158,0.5);background:var(--bg-card);">
+    <div id="season-status-bar" class="hidden" style="display:none;align-items:center;flex-wrap:wrap;gap:0.75rem 1rem;padding:0.75rem 1rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(196,180,158,0.4);background:linear-gradient(135deg, #e8e2d5, #e2dace);">
         <div style="flex:1;min-width:200px;">
             <span class="text-muted" style="font-size:0.85rem;">Season Status:</span>
             <strong id="status-label" style="margin-left:0.4rem;text-transform:uppercase;letter-spacing:0.05em;"></strong>
@@ -85,14 +85,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Leaderboard table only
             let tableHtml = '<div class="card">';
-            tableHtml += '<table><thead><tr><th>Rank</th><th>Player</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
+            tableHtml += '<table><thead><tr><th>Rank</th><th>Player</th><th style="text-align:right;">Total</th></tr></thead><tbody>';
             for (const entry of lb.entries) {
                 const pc = getPlayerColor(entry.player_name);
                 tableHtml += `<tr>
                     <td style="color:${pc.accent};font-weight:700;font-family:'Cinzel',serif;">#${entry.rank}</td>
                     <td><strong style="color:${pc.accent}">${entry.player_name}</strong>${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</td>
-                    <td>${formatScore(entry.prediction_bonus)}</td>
-                    <td><span class="score" style="color:${pc.accent}">${entry.grand_total.toFixed(2)}</span></td>
+                    <td style="text-align:right;"><span class="score" style="color:${pc.accent}">${entry.grand_total.toFixed(2)}</span></td>
                 </tr>`;
             }
             tableHtml += '</tbody></table></div>';
