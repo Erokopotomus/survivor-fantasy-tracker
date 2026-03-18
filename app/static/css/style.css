@@ -78,44 +78,42 @@ body::after {
     pointer-events: none;
     z-index: -1;
     background:
-        /* Torch glow - left side */
-        radial-gradient(ellipse at 0% 20%, rgba(232,117,26,0.4) 0%, transparent 25%),
-        radial-gradient(ellipse at 0% 18%, rgba(245,183,49,0.25) 0%, transparent 15%),
-        /* Torch glow - right side */
-        radial-gradient(ellipse at 100% 20%, rgba(232,117,26,0.4) 0%, transparent 25%),
-        radial-gradient(ellipse at 100% 18%, rgba(245,183,49,0.25) 0%, transparent 15%),
+        /* Warm firelight glow on edges */
+        radial-gradient(ellipse at 0% 15%, rgba(232,117,26,0.22) 0%, transparent 30%),
+        radial-gradient(ellipse at 100% 15%, rgba(232,117,26,0.22) 0%, transparent 30%),
         /* Ocean/water horizon at bottom */
-        linear-gradient(180deg, transparent 70%, rgba(42,74,127,0.15) 88%, rgba(26,58,74,0.22) 100%),
+        linear-gradient(180deg, transparent 75%, rgba(42,74,127,0.10) 90%, rgba(26,58,74,0.16) 100%),
         /* Warm sand at very bottom */
-        linear-gradient(180deg, transparent 82%, rgba(196,162,101,0.18) 100%);
+        linear-gradient(180deg, transparent 85%, rgba(196,162,101,0.12) 100%);
 }
 
-/* Faint torch SVGs on sides */
-.container::before,
-.container::after {
+/* Left watermark — palm frond silhouette */
+.container::before {
     content: '';
     position: fixed;
-    width: 60px;
+    left: -30px;
+    top: 60px;
+    width: 220px;
+    height: 600px;
     pointer-events: none;
     z-index: -1;
-    opacity: 0.35;
-}
-
-/* Left torch */
-.container::before {
-    left: 20px;
-    top: 80px;
-    height: 500px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 500'%3E%3C!-- Torch pole --%3E%3Crect x='26' y='160' width='8' height='340' rx='3' fill='%236b5344'/%3E%3C!-- Torch head --%3E%3Cpath d='M18 170 L30 155 L42 170 L38 180 L22 180 Z' fill='%233d2b1f'/%3E%3C!-- Flame outer --%3E%3Cpath d='M30 60 C38 90 48 120 42 155 L30 148 L18 155 C12 120 22 90 30 60Z' fill='%23e8751a'/%3E%3C!-- Flame inner --%3E%3Cpath d='M30 85 C35 105 40 125 37 148 L30 142 L23 148 C20 125 25 105 30 85Z' fill='%23f5b731'/%3E%3C!-- Flame core --%3E%3Cpath d='M30 105 C33 118 35 132 33 145 L30 140 L27 145 C25 132 27 118 30 105Z' fill='%23fff4cc'/%3E%3C/svg%3E") no-repeat center top;
+    opacity: 0.06;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 600'%3E%3Cg fill='%234a7a3a' opacity='0.9'%3E%3C!-- Main trunk --%3E%3Cpath d='M100 600 Q102 500 105 400 Q108 300 110 250' stroke='%233d2b1f' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3C!-- Frond 1 upper-right --%3E%3Cpath d='M110 250 Q140 200 180 160 Q160 210 140 240 Q125 255 110 260Z'/%3E%3C!-- Frond 2 upper-left --%3E%3Cpath d='M108 260 Q70 210 40 170 Q60 220 80 250 Q95 265 108 268Z'/%3E%3C!-- Frond 3 mid-right --%3E%3Cpath d='M110 280 Q150 250 200 230 Q165 265 140 285 Q125 295 112 295Z'/%3E%3C!-- Frond 4 mid-left --%3E%3Cpath d='M106 290 Q65 260 20 250 Q55 278 82 295 Q98 305 108 305Z'/%3E%3C!-- Frond 5 lower-right --%3E%3Cpath d='M112 310 Q155 300 195 285 Q160 315 135 325 Q120 330 112 328Z'/%3E%3C!-- Frond 6 lower-left --%3E%3Cpath d='M105 320 Q60 310 15 310 Q55 330 85 335 Q100 340 107 335Z'/%3E%3C!-- Top fronds --%3E%3Cpath d='M110 245 Q125 190 150 130 Q135 190 120 230 Q115 245 112 250Z'/%3E%3Cpath d='M108 245 Q90 185 70 120 Q88 185 100 230 Q105 248 108 252Z'/%3E%3C/g%3E%3C/svg%3E") no-repeat center top;
     background-size: contain;
 }
 
-/* Right torch */
+/* Right watermark — tribal pattern / tiki mask */
 .container::after {
-    right: 20px;
-    top: 80px;
+    content: '';
+    position: fixed;
+    right: -20px;
+    top: 100px;
+    width: 180px;
     height: 500px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 500'%3E%3Crect x='26' y='160' width='8' height='340' rx='3' fill='%236b5344'/%3E%3Cpath d='M18 170 L30 155 L42 170 L38 180 L22 180 Z' fill='%233d2b1f'/%3E%3Cpath d='M30 60 C38 90 48 120 42 155 L30 148 L18 155 C12 120 22 90 30 60Z' fill='%23e8751a'/%3E%3Cpath d='M30 85 C35 105 40 125 37 148 L30 142 L23 148 C20 125 25 105 30 85Z' fill='%23f5b731'/%3E%3Cpath d='M30 105 C33 118 35 132 33 145 L30 140 L27 145 C25 132 27 118 30 105Z' fill='%23fff4cc'/%3E%3C/svg%3E") no-repeat center top;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.05;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 500'%3E%3Cg fill='none' stroke='%236b5344' stroke-width='2.5' stroke-linecap='round'%3E%3C!-- Tribal band repeating --%3E%3Cpath d='M60 20 L90 50 L120 20'/%3E%3Cpath d='M60 50 L90 80 L120 50'/%3E%3Cpath d='M60 80 L90 110 L120 80'/%3E%3Cpath d='M70 110 L90 130 L110 110'/%3E%3C!-- Tiki face outline --%3E%3Cellipse cx='90' cy='200' rx='45' ry='55' stroke-width='3'/%3E%3C!-- Eyes --%3E%3Cellipse cx='75' cy='185' rx='12' ry='8'/%3E%3Cellipse cx='105' cy='185' rx='12' ry='8'/%3E%3Ccircle cx='75' cy='185' r='4' fill='%236b5344'/%3E%3Ccircle cx='105' cy='185' r='4' fill='%236b5344'/%3E%3C!-- Nose --%3E%3Cpath d='M85 195 L90 210 L95 195'/%3E%3C!-- Mouth --%3E%3Cpath d='M72 220 Q80 235 90 235 Q100 235 108 220'/%3E%3Cpath d='M76 225 L84 225 M96 225 L104 225'/%3E%3C!-- Headdress --%3E%3Cpath d='M45 150 Q60 130 90 125 Q120 130 135 150'/%3E%3Cpath d='M50 145 Q65 120 90 115 Q115 120 130 145'/%3E%3C!-- Lower tribal bands --%3E%3Cpath d='M60 280 L90 310 L120 280'/%3E%3Cpath d='M60 310 L90 340 L120 310'/%3E%3Cpath d='M70 340 L90 360 L110 340'/%3E%3C!-- Flame shapes at bottom --%3E%3Cpath d='M70 400 Q75 370 80 390 Q85 360 90 395 Q95 355 100 390 Q105 365 110 400' stroke='%23c9620e' stroke-width='2'/%3E%3Cpath d='M75 400 Q80 380 85 395 Q90 375 95 395 Q100 378 105 400' stroke='%23d4960a' stroke-width='1.5'/%3E%3C/g%3E%3C/svg%3E") no-repeat center top;
     background-size: contain;
 }
 
@@ -128,7 +126,7 @@ nav::before {
     right: 0;
     height: 5px;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.4;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='5' viewBox='0 0 40 5'%3E%3Cpath d='M0 5 L10 0 L20 5 L30 0 L40 5' fill='none' stroke='%23c9620e' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x;
 }
 
