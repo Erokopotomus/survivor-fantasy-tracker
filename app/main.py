@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.api import auth, seasons, castaways, episodes, rules, rosters, leaderboard, predictions, uploads
+from app.api import auth, seasons, castaways, episodes, rules, rosters, leaderboard, predictions, uploads, chat
 from app.api import pages
 
 # Import all models so Base.metadata is populated for create_all
@@ -77,6 +77,7 @@ app.include_router(rosters.router)
 app.include_router(leaderboard.router)
 app.include_router(predictions.router)
 app.include_router(uploads.router)
+app.include_router(chat.router)
 
 # Page routes (frontend)
 app.include_router(pages.router)

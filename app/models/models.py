@@ -232,3 +232,17 @@ class Prediction(Base):
     __table_args__ = (
         UniqueConstraint("season_id", "fantasy_player_id", "prediction_type", name="uq_prediction"),
     )
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season_id = Column(Integer, ForeignKey("seasons.id"), nullable=False)
+    fantasy_player_id = Column(Integer, ForeignKey("fantasy_players.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    season = relationship("Season")
+    fantasy_player = relationship("FantasyPlayer")

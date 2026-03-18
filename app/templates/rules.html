@@ -12,7 +12,7 @@
 (async () => {
     requireAuth();
     await populateSeasonSelector();
-    const seasonId = getCurrentSeasonId();
+    const seasonId = await getCurrentSeasonId();
     if (!seasonId) return;
 
     const rules = await apiGet(`/api/seasons/${seasonId}/rules`);

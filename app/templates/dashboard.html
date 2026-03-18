@@ -31,6 +31,16 @@
     </div>
     <div id="leaderboard-loading" class="loading"><span class="spinner"></span> Loading...</div>
     <div id="leaderboard-content" class="hidden"></div>
+
+    <!-- League Chat -->
+    <h2 class="mt-2 mb-1">League Chat</h2>
+    <div class="card" id="chat-card">
+        <div id="chat-messages" style="max-height:300px;overflow-y:auto;margin-bottom:0.75rem;padding:0.5rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
+        <form id="chat-form" style="display:flex;gap:0.5rem;" onsubmit="sendChat(event)">
+            <input type="text" id="chat-input" placeholder="Say something..." maxlength="500" style="flex:1;">
+            <button type="submit" class="btn btn-sm">Send</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
@@ -111,6 +121,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('leaderboard-loading').classList.add('hidden');
         container.classList.remove('hidden');
+
+        // Load chat
+        await loadChat(seasonId);
+        // Poll chat every 15 seconds
+        setInterval(() => loadChat(seasonId), 15000);
     } catch (err) {
         document.getElementById('leaderboard-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
     }
@@ -180,6 +195,41 @@ async function transitionSeason(seasonId, newStatus) {
         location.reload();
     } catch (err) {
         alert('Failed: ' + err.message);
+    }
+}
+
+// === Chat ===
+async function loadChat(seasonId) {
+    const msgs = await apiGet(`/api/seasons/${seasonId}/chat?limit=50`);
+    const box = document.getElementById('chat-messages');
+    if (!msgs || msgs.length === 0) {
+        box.innerHTML = '<span class="text-muted" style="font-size:0.85rem;text-align:center;">No messages yet. Be the first!</span>';
+        return;
+    }
+    box.innerHTML = msgs.map(m => {
+        const pc = getPlayerColor(m.player_name);
+        const ts = m.created_at ? new Date(m.created_at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+        return `<div style="font-size:0.85rem;line-height:1.4;">
+            <strong style="color:${pc.accent}">${m.player_name}</strong>
+            <span class="text-muted" style="font-size:0.7rem;margin-left:0.4rem;">${ts}</span>
+            <div>${m.message}</div>
+        </div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+}
+
+async function sendChat(e) {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    const seasonId = await getCurrentSeasonId();
+    try {
+        await apiPost(`/api/seasons/${seasonId}/chat`, { message: msg });
+        input.value = '';
+        await loadChat(seasonId);
+    } catch (err) {
+        alert('Send failed: ' + err.message);
     }
 }
 </script>
