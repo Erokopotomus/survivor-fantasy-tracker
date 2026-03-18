@@ -33,14 +33,14 @@
                 <div id="season-info" class="text-muted" style="font-family:'Almendra',serif;font-style:italic;"></div>
             </div>
             <div id="leaderboard-loading" class="loading"><span class="spinner"></span> Loading...</div>
-            <div id="leaderboard-content" class="hidden"></div>
+            <div id="leaderboard-table" class="hidden"></div>
         </div>
 
         <!-- Right: League Chat -->
-        <div>
+        <div id="chat-wrapper">
             <h1 class="mb-2">League Chat</h1>
-            <div class="card" id="chat-card" style="display:flex;flex-direction:column;height:100%;min-height:320px;">
-                <div id="chat-messages" style="flex:1;overflow-y:auto;margin-bottom:0.75rem;padding:0.5rem;display:flex;flex-direction:column;gap:0.4rem;max-height:400px;"></div>
+            <div class="card" id="chat-card" style="display:flex;flex-direction:column;">
+                <div id="chat-messages" style="flex:1;overflow-y:auto;margin-bottom:0.75rem;padding:0.5rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
                 <form id="chat-form" style="display:flex;gap:0.5rem;" onsubmit="sendChat(event)">
                     <input type="text" id="chat-input" placeholder="Say something..." maxlength="500" style="flex:1;">
                     <button type="submit" class="btn btn-sm">Send</button>
@@ -48,6 +48,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Rosters: full width below -->
+    <div id="rosters-content" class="hidden"></div>
 </div>
 {% endblock %}
 
@@ -74,60 +77,75 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const lb = await apiGet(`/api/seasons/${seasonId}/leaderboard`);
-        const container = document.getElementById('leaderboard-content');
+        const tableContainer = document.getElementById('leaderboard-table');
+        const rostersContainer = document.getElementById('rosters-content');
 
         if (lb.entries.length === 0) {
-            container.innerHTML = '<p class="text-muted">No scores yet. Draft some castaways and start scoring episodes!</p>';
+            tableContainer.innerHTML = '<p class="text-muted">No scores yet. Draft some castaways and start scoring episodes!</p>';
         } else {
-            // Condensed leaderboard table
-            let html = '<div class="card">';
-            html += '<table><thead><tr><th>Rank</th><th>Player</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
+            // Leaderboard table only
+            let tableHtml = '<div class="card">';
+            tableHtml += '<table><thead><tr><th>Rank</th><th>Player</th><th>Prediction Bonus</th><th>Total</th></tr></thead><tbody>';
             for (const entry of lb.entries) {
                 const pc = getPlayerColor(entry.player_name);
-                html += `<tr>
+                tableHtml += `<tr>
                     <td style="color:${pc.accent};font-weight:700;font-family:'Cinzel',serif;">#${entry.rank}</td>
                     <td><strong style="color:${pc.accent}">${entry.player_name}</strong>${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</td>
                     <td>${formatScore(entry.prediction_bonus)}</td>
                     <td><span class="score" style="color:${pc.accent}">${entry.grand_total.toFixed(2)}</span></td>
                 </tr>`;
             }
-            html += '</tbody></table></div>';
+            tableHtml += '</tbody></table></div>';
+            tableContainer.innerHTML = tableHtml;
 
-            // Roster cards
-            html += '<h2 class="mt-2 mb-1">Rosters</h2>';
-            html += '<div class="roster-cards">';
+            // Roster cards (separate, full width)
+            let rosterHtml = '<h2 class="mt-2 mb-1">Rosters</h2>';
+            rosterHtml += '<div class="roster-cards">';
             for (const entry of lb.entries) {
                 const pc = getPlayerColor(entry.player_name);
-                html += `<div class="roster-card" data-player="${entry.player_name}">`;
-                html += `<div class="roster-card-header">`;
-                html += `<span class="player-name">${entry.player_name}${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</span>`;
-                html += `<span class="player-total">${entry.grand_total.toFixed(2)}</span>`;
-                html += `</div>`;
+                rosterHtml += `<div class="roster-card" data-player="${entry.player_name}">`;
+                rosterHtml += `<div class="roster-card-header">`;
+                rosterHtml += `<span class="player-name">${entry.player_name}${entry.is_commissioner ? ' <span class="badge badge-commissioner">Commish</span>' : ''}</span>`;
+                rosterHtml += `<span class="player-total">${entry.grand_total.toFixed(2)}</span>`;
+                rosterHtml += `</div>`;
 
                 for (const c of entry.roster_breakdown) {
                     const isEliminated = c.status && c.status !== 'active';
-                    html += `<a href="/castaway/${c.castaway_id}" class="roster-castaway${isEliminated ? ' eliminated' : ''}">`;
-                    html += renderPhoto(c.photo_url, c.castaway_name, 40);
-                    html += `<div class="castaway-info">`;
-                    html += `<div class="name">${c.castaway_name}</div>`;
-                    html += `<div class="pickup-type">${c.pickup_type}${isEliminated ? ' &middot; voted out' : ''}</div>`;
-                    html += `</div>`;
-                    html += `<div class="castaway-score" style="color:${pc.accent}">${c.total_score.toFixed(2)}</div>`;
-                    html += `</a>`;
+                    rosterHtml += `<a href="/castaway/${c.castaway_id}" class="roster-castaway${isEliminated ? ' eliminated' : ''}">`;
+                    rosterHtml += renderPhoto(c.photo_url, c.castaway_name, 40);
+                    rosterHtml += `<div class="castaway-info">`;
+                    rosterHtml += `<div class="name">${c.castaway_name}</div>`;
+                    rosterHtml += `<div class="pickup-type">${c.pickup_type}${isEliminated ? ' &middot; voted out' : ''}</div>`;
+                    rosterHtml += `</div>`;
+                    rosterHtml += `<div class="castaway-score" style="color:${pc.accent}">${c.total_score.toFixed(2)}</div>`;
+                    rosterHtml += `</a>`;
                 }
 
                 if (entry.prediction_bonus > 0) {
-                    html += `<div style="text-align:right;padding-top:0.5rem;font-size:0.8rem;color:var(--mud);font-family:'Source Sans Pro',sans-serif;">Prediction bonus: +${entry.prediction_bonus.toFixed(2)}</div>`;
+                    rosterHtml += `<div style="text-align:right;padding-top:0.5rem;font-size:0.8rem;color:var(--mud);font-family:'Source Sans Pro',sans-serif;">Prediction bonus: +${entry.prediction_bonus.toFixed(2)}</div>`;
                 }
-                html += `</div>`;
+                rosterHtml += `</div>`;
             }
-            html += '</div>';
-
-            container.innerHTML = html;
+            rosterHtml += '</div>';
+            rostersContainer.innerHTML = rosterHtml;
+            rostersContainer.classList.remove('hidden');
         }
 
         document.getElementById('leaderboard-loading').classList.add('hidden');
-        container.classList.remove('hidden');
+        tableContainer.classList.remove('hidden');
+
+        // Size chat to match leaderboard column height
+        requestAnimationFrame(() => {
+            const leftCol = tableContainer.closest('div[style]');
+            if (leftCol) {
+                const chatCard = document.getElementById('chat-card');
+                const chatWrapper = document.getElementById('chat-wrapper');
+                const wrapperTop = chatWrapper.querySelector('h1');
+                const headerH = wrapperTop ? wrapperTop.offsetHeight + 16 : 0; // h1 + mb-2
+                const leftH = leftCol.offsetHeight;
+                chatCard.style.height = (leftH - headerH) + 'px';
+            }
+        });
 
         // Load chat
         await loadChat(seasonId);
