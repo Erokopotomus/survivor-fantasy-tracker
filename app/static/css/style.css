@@ -78,15 +78,58 @@ body::after {
     pointer-events: none;
     z-index: -1;
     background:
-        /* Warm torch glow top-left */
-        radial-gradient(ellipse at 5% 15%, rgba(201,98,14,0.06) 0%, transparent 40%),
-        /* Sandy glow center-right */
-        radial-gradient(ellipse at 90% 50%, rgba(196,162,101,0.05) 0%, transparent 45%),
-        /* Ocean blue hint bottom */
-        radial-gradient(ellipse at 50% 95%, rgba(42,74,127,0.04) 0%, transparent 40%),
-        /* Faint palm frond shapes */
-        radial-gradient(ellipse at 95% 8%, rgba(26,107,90,0.03) 0%, transparent 25%),
-        radial-gradient(ellipse at 3% 85%, rgba(26,107,90,0.025) 0%, transparent 20%);
+        /* Torch glow - left side */
+        radial-gradient(ellipse at 3% 25%, rgba(232,117,26,0.07) 0%, transparent 30%),
+        radial-gradient(ellipse at 2% 22%, rgba(245,183,49,0.04) 0%, transparent 18%),
+        /* Torch glow - right side */
+        radial-gradient(ellipse at 97% 25%, rgba(232,117,26,0.07) 0%, transparent 30%),
+        radial-gradient(ellipse at 98% 22%, rgba(245,183,49,0.04) 0%, transparent 18%),
+        /* Ocean/water horizon at bottom */
+        linear-gradient(180deg, transparent 85%, rgba(42,74,127,0.04) 95%, rgba(26,58,74,0.06) 100%),
+        /* Warm sand at very bottom */
+        linear-gradient(180deg, transparent 92%, rgba(196,162,101,0.06) 100%);
+}
+
+/* Faint torch SVGs on sides */
+.container::before,
+.container::after {
+    content: '';
+    position: fixed;
+    width: 60px;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.04;
+}
+
+/* Left torch */
+.container::before {
+    left: 20px;
+    top: 80px;
+    height: 500px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 500'%3E%3C!-- Torch pole --%3E%3Crect x='26' y='160' width='8' height='340' rx='3' fill='%236b5344'/%3E%3C!-- Torch head --%3E%3Cpath d='M18 170 L30 155 L42 170 L38 180 L22 180 Z' fill='%233d2b1f'/%3E%3C!-- Flame outer --%3E%3Cpath d='M30 60 C38 90 48 120 42 155 L30 148 L18 155 C12 120 22 90 30 60Z' fill='%23e8751a'/%3E%3C!-- Flame inner --%3E%3Cpath d='M30 85 C35 105 40 125 37 148 L30 142 L23 148 C20 125 25 105 30 85Z' fill='%23f5b731'/%3E%3C!-- Flame core --%3E%3Cpath d='M30 105 C33 118 35 132 33 145 L30 140 L27 145 C25 132 27 118 30 105Z' fill='%23fff4cc'/%3E%3C/svg%3E") no-repeat center top;
+    background-size: contain;
+}
+
+/* Right torch */
+.container::after {
+    right: 20px;
+    top: 80px;
+    height: 500px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 500'%3E%3Crect x='26' y='160' width='8' height='340' rx='3' fill='%236b5344'/%3E%3Cpath d='M18 170 L30 155 L42 170 L38 180 L22 180 Z' fill='%233d2b1f'/%3E%3Cpath d='M30 60 C38 90 48 120 42 155 L30 148 L18 155 C12 120 22 90 30 60Z' fill='%23e8751a'/%3E%3Cpath d='M30 85 C35 105 40 125 37 148 L30 142 L23 148 C20 125 25 105 30 85Z' fill='%23f5b731'/%3E%3Cpath d='M30 105 C33 118 35 132 33 145 L30 140 L27 145 C25 132 27 118 30 105Z' fill='%23fff4cc'/%3E%3C/svg%3E") no-repeat center top;
+    background-size: contain;
+}
+
+/* Tribal pattern border at top of page (under nav) */
+nav::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 5px;
+    pointer-events: none;
+    opacity: 0.12;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='5' viewBox='0 0 40 5'%3E%3Cpath d='M0 5 L10 0 L20 5 L30 0 L40 5' fill='none' stroke='%23c9620e' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x;
 }
 
 /* === Typography Defaults === */

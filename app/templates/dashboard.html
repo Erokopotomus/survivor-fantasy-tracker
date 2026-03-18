@@ -25,11 +25,6 @@
             <span id="settings-feedback" style="font-size:0.8rem;color:var(--green);display:none;">Saved!</span>
         </div>
     </div>
-    <!-- Season Logo -->
-    <div id="season-logo" class="hidden" style="text-align:center;margin-bottom:1rem;">
-        <img id="season-logo-img" src="" alt="" style="max-height:100px;opacity:0.85;">
-    </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
         <!-- Left: Leaderboard -->
         <div>
@@ -76,15 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const seasons = await getSeasons();
         const season = seasons.find(s => s.id === seasonId);
         document.getElementById('season-info').textContent = season ? season.name : '';
-
-        // Show season logo
-        const logoUrl = season?.logo_url || `/static/img/s${season?.season_number}-logo.png`;
-        if (logoUrl) {
-            const logoImg = document.getElementById('season-logo-img');
-            logoImg.src = logoUrl;
-            logoImg.alt = season?.name || '';
-            logoImg.onload = () => document.getElementById('season-logo').classList.remove('hidden');
-        }
 
         if (auth.is_commissioner && season) {
             renderStatusBar(season, seasonId);
