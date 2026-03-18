@@ -70,7 +70,7 @@ body::before {
     background-size: 256px 256px;
 }
 
-/* Radial gradient atmosphere (warm light tones) */
+/* Survivor-themed background accents */
 body::after {
     content: '';
     position: fixed;
@@ -78,9 +78,15 @@ body::after {
     pointer-events: none;
     z-index: -1;
     background:
-        radial-gradient(ellipse at 20% 30%, rgba(201,98,14,0.04) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 40%, rgba(196,162,101,0.06) 0%, transparent 55%),
-        radial-gradient(ellipse at 50% 90%, rgba(42,74,127,0.03) 0%, transparent 50%);
+        /* Warm torch glow top-left */
+        radial-gradient(ellipse at 5% 15%, rgba(201,98,14,0.06) 0%, transparent 40%),
+        /* Sandy glow center-right */
+        radial-gradient(ellipse at 90% 50%, rgba(196,162,101,0.05) 0%, transparent 45%),
+        /* Ocean blue hint bottom */
+        radial-gradient(ellipse at 50% 95%, rgba(42,74,127,0.04) 0%, transparent 40%),
+        /* Faint palm frond shapes */
+        radial-gradient(ellipse at 95% 8%, rgba(26,107,90,0.03) 0%, transparent 25%),
+        radial-gradient(ellipse at 3% 85%, rgba(26,107,90,0.025) 0%, transparent 20%);
 }
 
 /* === Typography Defaults === */
@@ -737,35 +743,35 @@ tr:hover td { background: rgba(201,98,14,0.04); }
 /* Player-colored roster cards */
 .roster-card[data-player="Eric"] {
     background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--player-eric);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid rgba(14,138,106,0.25);
+    border-left: 4px solid var(--player-eric);
+    box-shadow: 0 2px 8px rgba(14,138,106,0.08);
 }
 .roster-card[data-player="Calvin"] {
     background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--player-calvin);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid rgba(201,98,14,0.25);
+    border-left: 4px solid var(--player-calvin);
+    box-shadow: 0 2px 8px rgba(201,98,14,0.08);
 }
 .roster-card[data-player="Jake"] {
     background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--player-jake);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid rgba(109,79,192,0.25);
+    border-left: 4px solid var(--player-jake);
+    box-shadow: 0 2px 8px rgba(109,79,192,0.08);
 }
 .roster-card[data-player="Josh"] {
     background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--player-josh);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid rgba(201,59,59,0.25);
+    border-left: 4px solid var(--player-josh);
+    box-shadow: 0 2px 8px rgba(201,59,59,0.08);
 }
 
 /* Default roster card (no data-player match) */
 .roster-card:not([data-player]) {
     background: var(--bg-card);
     border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--bark-brown);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border-left: 4px solid var(--bark-brown);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .roster-card:hover {
