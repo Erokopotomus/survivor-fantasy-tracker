@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Rules — Survivor Fantasy{% endblock %}
+
+{% block content %}
+<h1>Scoring Rules</h1>
+<div id="alert-box"></div>
+<div id="rules-container" class="loading">Loading rules...</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+    requireAuth();
+    await populateSeasonSelector();
+    const seasonId = getCurrentSeasonId();
+    if (!seasonId) return;
+
+    const rules = await apiGet(`/api/seasons/${seasonId}/rules`);
+    const container = document.getElementById('rules-container');
+
+    if (!rules || rules.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No rules found for this season.</p>';
+        return;
+    }
+
+    // Group by phase
+    const phases = { 'any': 'Any Phase', 'pre_merge': 'Pre-Merge', 'post_merge': 'Post-Merge' };
+    const grouped = {};
+    for (const r of rules) {
+        const p = r.phase || 'any';
+        if (!grouped[p]) grouped[p] = [];
+        grouped[p].push(r);
+    }
+
+    let html = '';
+    for (const [phase, label] of Object.entries(phases)) {
+        const items = grouped[phase];
+        if (!items || items.length === 0) continue;
+
+        html += `<div class="card mt-2">
+            <div class="card-header">${label}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Points</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        for (const r of items) {
+            const pts = r.points > 0 ? `+${r.points}` : `${r.points}`;
+            const ptsClass = r.points > 0 ? 'score-positive' : (r.points < 0 ? 'score-negative' : '');
+            const type = r.multiplier === 'per_instance' ? 'Per Instance' : 'Binary';
+            const status = r.is_active
+                ? '<span class="badge badge-active">Active</span>'
+                : '<span class="badge badge-eliminated">Inactive</span>';
+            const desc = r.description || '—';
+
+            html += `<tr${!r.is_active ? ' style="opacity:0.5"' : ''}>
+                <td><strong>${r.rule_name}</strong></td>
+                <td class="score ${ptsClass}">${pts}</td>
+                <td>${type}</td>
+                <td class="text-muted">${desc}</td>
+                <td>${status}</td>
+            </tr>`;
+        }
+
+        html += `</tbody></table></div>`;
+    }
+
+    container.innerHTML = html;
+    container.classList.remove('loading');
+})();
+</script>
+{% endblock %}

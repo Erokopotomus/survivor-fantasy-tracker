@@ -52,3 +52,8 @@ async def draft_page(request: Request):
 @router.get("/weekly-recap", response_class=HTMLResponse)
 async def weekly_recap_page(request: Request):
     return templates.TemplateResponse("weekly_recap.html", {"request": request})
+
+
+@router.get("/rules", response_class=HTMLResponse)
+async def rules_page(request: Request):
+    return templates.TemplateResponse("rules.html", {"request": request})
