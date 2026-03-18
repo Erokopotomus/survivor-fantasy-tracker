@@ -25,21 +25,28 @@
             <span id="settings-feedback" style="font-size:0.8rem;color:#10B981;display:none;">Saved!</span>
         </div>
     </div>
-    <div class="flex-between mb-2">
-        <h1>Leaderboard</h1>
-        <div id="season-info" class="text-muted" style="font-family:'Almendra',serif;font-style:italic;"></div>
-    </div>
-    <div id="leaderboard-loading" class="loading"><span class="spinner"></span> Loading...</div>
-    <div id="leaderboard-content" class="hidden"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
+        <!-- Left: Leaderboard -->
+        <div>
+            <div class="flex-between mb-2">
+                <h1>Leaderboard</h1>
+                <div id="season-info" class="text-muted" style="font-family:'Almendra',serif;font-style:italic;"></div>
+            </div>
+            <div id="leaderboard-loading" class="loading"><span class="spinner"></span> Loading...</div>
+            <div id="leaderboard-content" class="hidden"></div>
+        </div>
 
-    <!-- League Chat -->
-    <h2 class="mt-2 mb-1">League Chat</h2>
-    <div class="card" id="chat-card">
-        <div id="chat-messages" style="max-height:300px;overflow-y:auto;margin-bottom:0.75rem;padding:0.5rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
-        <form id="chat-form" style="display:flex;gap:0.5rem;" onsubmit="sendChat(event)">
-            <input type="text" id="chat-input" placeholder="Say something..." maxlength="500" style="flex:1;">
-            <button type="submit" class="btn btn-sm">Send</button>
-        </form>
+        <!-- Right: League Chat -->
+        <div>
+            <h1 class="mb-2">League Chat</h1>
+            <div class="card" id="chat-card" style="display:flex;flex-direction:column;height:100%;min-height:320px;">
+                <div id="chat-messages" style="flex:1;overflow-y:auto;margin-bottom:0.75rem;padding:0.5rem;display:flex;flex-direction:column;gap:0.4rem;max-height:400px;"></div>
+                <form id="chat-form" style="display:flex;gap:0.5rem;" onsubmit="sendChat(event)">
+                    <input type="text" id="chat-input" placeholder="Say something..." maxlength="500" style="flex:1;">
+                    <button type="submit" class="btn btn-sm">Send</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
