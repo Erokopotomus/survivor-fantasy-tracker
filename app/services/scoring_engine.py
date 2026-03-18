@@ -203,6 +203,7 @@ async def get_fantasy_player_total(
             "total_score": castaway_total,
             "photo_url": castaway.photo_url,
             "status": castaway.status.value if castaway.status else "active",
+            "current_tribe": castaway.current_tribe,
         })
         grand_total += castaway_total
 

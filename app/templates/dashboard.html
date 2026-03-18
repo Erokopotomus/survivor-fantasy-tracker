@@ -97,8 +97,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             tableHtml += '</tbody></table></div>';
             tableContainer.innerHTML = tableHtml;
 
+            // Collect active tribes for legend
+            const activeTribes = new Set();
+            for (const entry of lb.entries) {
+                for (const c of entry.roster_breakdown) {
+                    if (c.current_tribe) activeTribes.add(c.current_tribe);
+                }
+            }
+
             // Roster cards (separate, full width)
-            let rosterHtml = '<h2 class="mt-2 mb-1">Rosters</h2>';
+            let rosterHtml = '<div class="flex-between" style="align-items:baseline;"><h2 class="mt-2 mb-1">Rosters</h2>';
+            rosterHtml += '<div style="display:flex;gap:1rem;font-size:0.75rem;font-family:\'Cinzel\',serif;text-transform:uppercase;letter-spacing:0.08em;">';
+            for (const tribe of activeTribes) {
+                const tc = getTribeColor(tribe);
+                rosterHtml += `<span style="display:flex;align-items:center;gap:0.3rem;"><span style="width:10px;height:10px;border-radius:50%;background:${tc};display:inline-block;"></span>${tribe}</span>`;
+            }
+            rosterHtml += '</div></div>';
             rosterHtml += '<div class="roster-cards">';
             for (const entry of lb.entries) {
                 const pc = getPlayerColor(entry.player_name);
@@ -110,7 +124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 for (const c of entry.roster_breakdown) {
                     const isEliminated = c.status && c.status !== 'active';
-                    rosterHtml += `<a href="/castaway/${c.castaway_id}" class="roster-castaway${isEliminated ? ' eliminated' : ''}">`;
+                    const tc = c.current_tribe ? getTribeColor(c.current_tribe) : null;
+                    const tribeBg = tc && !isEliminated ? `background:${tc}10;` : '';
+                    rosterHtml += `<a href="/castaway/${c.castaway_id}" class="roster-castaway${isEliminated ? ' eliminated' : ''}" style="${tribeBg}">`;
                     rosterHtml += renderPhoto(c.photo_url, c.castaway_name, 40);
                     rosterHtml += `<div class="castaway-info">`;
                     rosterHtml += `<div class="name">${c.castaway_name}</div>`;
@@ -180,7 +196,7 @@ function renderStatusBar(season, seasonId) {
 
     const flow = STATUS_FLOW[status];
     if (flow) {
-        actions.innerHTML = `<button class="btn btn-sm" style="border-color:${flow.color};color:${flow.color};" onclick="transitionSeason(${seasonId}, '${flow.next}')">${flow.label} &rarr;</button>`;
+        actions.innerHTML = `<button class="btn btn-sm btn-outline" style="border-color:${flow.color};color:${flow.color};" onclick="transitionSeason(${seasonId}, '${flow.next}')">${flow.label} &rarr;</button>`;
     } else {
         actions.innerHTML = '';
     }

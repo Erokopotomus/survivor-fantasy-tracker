@@ -8,6 +8,7 @@ class CastawayBreakdownItem(BaseModel):
     total_score: float
     photo_url: str | None = None
     status: str = "active"
+    current_tribe: str | None = None
 
 
 class LeaderboardEntry(BaseModel):
