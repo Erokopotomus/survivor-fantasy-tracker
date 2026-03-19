@@ -24,7 +24,7 @@
 
     /* --- Semantic aliases --- */
     --bg: var(--jungle-dark);
-    --bg-card: #faf8f3;
+    --bg-card: #f7f3e8;
     --bg-input: #f5f2ec;
     --border: var(--bark-brown);
     --text: var(--bone);
@@ -70,7 +70,7 @@ body::before {
     background-size: 256px 256px;
 }
 
-/* Survivor-themed background accents */
+/* Survivor-themed background accents — firelight vignette */
 body::after {
     content: '';
     position: fixed;
@@ -78,56 +78,68 @@ body::after {
     pointer-events: none;
     z-index: -1;
     background:
-        /* Warm firelight glow on edges */
-        radial-gradient(ellipse at 0% 15%, rgba(232,117,26,0.22) 0%, transparent 30%),
-        radial-gradient(ellipse at 100% 15%, rgba(232,117,26,0.22) 0%, transparent 30%),
+        /* Warm firelight glow on edges — boosted */
+        radial-gradient(ellipse at 0% 10%, rgba(201,98,14,0.18) 0%, transparent 35%),
+        radial-gradient(ellipse at 100% 10%, rgba(201,98,14,0.18) 0%, transparent 35%),
+        radial-gradient(ellipse at 0% 50%, rgba(212,150,10,0.08) 0%, transparent 30%),
+        radial-gradient(ellipse at 100% 50%, rgba(212,150,10,0.08) 0%, transparent 30%),
         /* Ocean/water horizon at bottom */
-        linear-gradient(180deg, transparent 75%, rgba(42,74,127,0.10) 90%, rgba(26,58,74,0.16) 100%),
+        linear-gradient(180deg, transparent 75%, rgba(42,74,127,0.10) 90%, rgba(26,58,74,0.14) 100%),
         /* Warm sand at very bottom */
-        linear-gradient(180deg, transparent 85%, rgba(196,162,101,0.12) 100%);
+        linear-gradient(180deg, transparent 85%, rgba(196,162,101,0.10) 100%);
+    animation: firelight-flicker 4s ease-in-out infinite;
 }
 
-/* Left watermark — palm frond silhouette */
+@keyframes firelight-flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+}
+
+/* Tribal geometric watermark — repeating chevron/diamond pattern */
 .container::before {
     content: '';
     position: fixed;
-    left: -30px;
-    top: 60px;
-    width: 220px;
-    height: 600px;
+    top: 0; left: 0; right: 0; bottom: 0;
     pointer-events: none;
     z-index: -1;
-    opacity: 0.06;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 600'%3E%3Cg fill='%234a7a3a' opacity='0.9'%3E%3C!-- Main trunk --%3E%3Cpath d='M100 600 Q102 500 105 400 Q108 300 110 250' stroke='%233d2b1f' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3C!-- Frond 1 upper-right --%3E%3Cpath d='M110 250 Q140 200 180 160 Q160 210 140 240 Q125 255 110 260Z'/%3E%3C!-- Frond 2 upper-left --%3E%3Cpath d='M108 260 Q70 210 40 170 Q60 220 80 250 Q95 265 108 268Z'/%3E%3C!-- Frond 3 mid-right --%3E%3Cpath d='M110 280 Q150 250 200 230 Q165 265 140 285 Q125 295 112 295Z'/%3E%3C!-- Frond 4 mid-left --%3E%3Cpath d='M106 290 Q65 260 20 250 Q55 278 82 295 Q98 305 108 305Z'/%3E%3C!-- Frond 5 lower-right --%3E%3Cpath d='M112 310 Q155 300 195 285 Q160 315 135 325 Q120 330 112 328Z'/%3E%3C!-- Frond 6 lower-left --%3E%3Cpath d='M105 320 Q60 310 15 310 Q55 330 85 335 Q100 340 107 335Z'/%3E%3C!-- Top fronds --%3E%3Cpath d='M110 245 Q125 190 150 130 Q135 190 120 230 Q115 245 112 250Z'/%3E%3Cpath d='M108 245 Q90 185 70 120 Q88 185 100 230 Q105 248 108 252Z'/%3E%3C/g%3E%3C/svg%3E") no-repeat center top;
-    background-size: contain;
+    opacity: 0.035;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%236b5a42' stroke-width='1.5'%3E%3Cpath d='M0 30 L15 15 L30 30 L15 45Z'/%3E%3Cpath d='M30 30 L45 15 L60 30 L45 45Z'/%3E%3Cpath d='M15 0 L30 15 L15 30 L0 15Z'/%3E%3Cpath d='M45 0 L60 15 L45 30 L30 15Z'/%3E%3Cpath d='M15 30 L30 45 L15 60 L0 45Z'/%3E%3Cpath d='M45 30 L60 45 L45 60 L30 45Z'/%3E%3C/g%3E%3C/svg%3E") repeat;
+    background-size: 60px 60px;
 }
 
-/* Right watermark — tribal pattern / tiki mask */
+/* Torch silhouettes — left side */
 .container::after {
     content: '';
     position: fixed;
-    right: -20px;
-    top: 100px;
-    width: 180px;
-    height: 500px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: -1;
-    opacity: 0.05;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 500'%3E%3Cg fill='none' stroke='%236b5344' stroke-width='2.5' stroke-linecap='round'%3E%3C!-- Tribal band repeating --%3E%3Cpath d='M60 20 L90 50 L120 20'/%3E%3Cpath d='M60 50 L90 80 L120 50'/%3E%3Cpath d='M60 80 L90 110 L120 80'/%3E%3Cpath d='M70 110 L90 130 L110 110'/%3E%3C!-- Tiki face outline --%3E%3Cellipse cx='90' cy='200' rx='45' ry='55' stroke-width='3'/%3E%3C!-- Eyes --%3E%3Cellipse cx='75' cy='185' rx='12' ry='8'/%3E%3Cellipse cx='105' cy='185' rx='12' ry='8'/%3E%3Ccircle cx='75' cy='185' r='4' fill='%236b5344'/%3E%3Ccircle cx='105' cy='185' r='4' fill='%236b5344'/%3E%3C!-- Nose --%3E%3Cpath d='M85 195 L90 210 L95 195'/%3E%3C!-- Mouth --%3E%3Cpath d='M72 220 Q80 235 90 235 Q100 235 108 220'/%3E%3Cpath d='M76 225 L84 225 M96 225 L104 225'/%3E%3C!-- Headdress --%3E%3Cpath d='M45 150 Q60 130 90 125 Q120 130 135 150'/%3E%3Cpath d='M50 145 Q65 120 90 115 Q115 120 130 145'/%3E%3C!-- Lower tribal bands --%3E%3Cpath d='M60 280 L90 310 L120 280'/%3E%3Cpath d='M60 310 L90 340 L120 310'/%3E%3Cpath d='M70 340 L90 360 L110 340'/%3E%3C!-- Flame shapes at bottom --%3E%3Cpath d='M70 400 Q75 370 80 390 Q85 360 90 395 Q95 355 100 390 Q105 365 110 400' stroke='%23c9620e' stroke-width='2'/%3E%3Cpath d='M75 400 Q80 380 85 395 Q90 375 95 395 Q100 378 105 400' stroke='%23d4960a' stroke-width='1.5'/%3E%3C/g%3E%3C/svg%3E") no-repeat center top;
-    background-size: contain;
+    opacity: 1;
+    background:
+        /* Left torch */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.05'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat 20px 80px,
+        /* Right torch */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.05'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% - 20px) 80px,
+        /* Second pair of torches, lower */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.035'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat 50px 450px,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.035'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% - 50px) 450px;
+    background-size: 50px 500px, 50px 500px, 50px 500px, 50px 500px;
 }
 
-/* Tribal pattern border at top of page (under nav) */
+/* Twisted rope border under nav */
 nav::before {
     content: '';
     position: absolute;
-    bottom: -8px;
+    bottom: -10px;
     left: 0;
     right: 0;
-    height: 5px;
+    height: 8px;
     pointer-events: none;
-    opacity: 0.4;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='5' viewBox='0 0 40 5'%3E%3Cpath d='M0 5 L10 0 L20 5 L30 0 L40 5' fill='none' stroke='%23c9620e' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x;
+    opacity: 0.35;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='8' viewBox='0 0 24 8'%3E%3Cpath d='M0 4 Q3 0 6 4 Q9 8 12 4 Q15 0 18 4 Q21 8 24 4' fill='none' stroke='%238a7a66' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M0 4 Q3 8 6 4 Q9 0 12 4 Q15 8 18 4 Q21 0 24 4' fill='none' stroke='%236b5a42' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
 }
 
 /* === Typography Defaults === */
@@ -299,20 +311,47 @@ nav::after {
     padding: 1.5rem;
 }
 
-/* === Cards === */
+/* === Cards — burned parchment scroll === */
 .card {
-    background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
-    border-left: 3px solid var(--torch-orange);
-    border-radius: var(--radius);
+    background: #f7f3e8;
+    border: 1px solid rgba(180,160,130,0.5);
+    border-left: 3px solid transparent;
+    border-image: linear-gradient(180deg, var(--ember-red), var(--torch-orange), var(--torch-yellow)) 1;
+    border-image-slice: 0 0 0 3;
+    border-radius: 8px 4px 8px 4px;
     padding: 1.25rem;
     margin-bottom: 1rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+    box-shadow:
+        0 1px 4px rgba(0,0,0,0.05),
+        0 4px 12px rgba(0,0,0,0.04),
+        /* Singed/burned edge glow */
+        inset 0 0 30px rgba(139,37,0,0.03),
+        inset 0 -2px 8px rgba(201,98,14,0.04),
+        inset 2px 0 8px rgba(201,98,14,0.03);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+
+/* Parchment texture on cards */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 200px 200px;
 }
 
 .card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.07),
+        0 8px 24px rgba(0,0,0,0.05),
+        inset 0 0 30px rgba(139,37,0,0.04),
+        inset 0 -2px 8px rgba(201,98,14,0.05),
+        inset 2px 0 8px rgba(201,98,14,0.04);
 }
 
 .card-header {
@@ -524,14 +563,17 @@ tr:hover td { background: rgba(201,98,14,0.04); }
 }
 
 .login-card {
-    background: var(--bg-card);
-    border: 1px solid rgba(196,180,158,0.5);
+    background: #f7f3e8;
+    border: 1px solid rgba(180,160,130,0.5);
     border-top: 3px solid var(--torch-orange);
-    border-radius: var(--radius);
+    border-radius: 8px 4px 8px 4px;
     padding: 2.5rem;
     width: 100%;
     max-width: 400px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 0 60px rgba(201,98,14,0.03);
+    box-shadow:
+        0 4px 24px rgba(0,0,0,0.08),
+        0 0 60px rgba(201,98,14,0.05),
+        inset 0 0 30px rgba(139,37,0,0.03);
 }
 
 .login-card h1 {
