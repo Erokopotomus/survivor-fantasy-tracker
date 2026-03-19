@@ -107,27 +107,19 @@ body::after {
     background-size: 60px 60px;
 }
 
-/* Torch silhouettes — left side */
-.container::after {
-    content: '';
+/* Torch silhouettes — flanking content via dedicated element */
+.torch-left, .torch-right {
     position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
+    top: 70px;
+    width: 80px;
+    height: 90vh;
     pointer-events: none;
-    z-index: -1;
-    opacity: 1;
-    background:
-        /* Left torch */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.05'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat 20px 80px,
-        /* Right torch */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.05'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% - 20px) 80px,
-        /* Second pair of torches, lower */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.035'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat 50px 450px,
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 500'%3E%3Cg opacity='0.035'%3E%3Crect x='22' y='120' width='6' height='380' rx='3' fill='%233d2b1f'/%3E%3Crect x='18' y='110' width='14' height='20' rx='2' fill='%235a4030'/%3E%3Cellipse cx='25' cy='95' rx='14' ry='22' fill='%23c9620e'/%3E%3Cellipse cx='25' cy='88' rx='9' ry='16' fill='%23d4960a'/%3E%3Cellipse cx='25' cy='82' rx='5' ry='10' fill='%23e8a828'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% - 50px) 450px;
-    background-size: 50px 500px, 50px 500px, 50px 500px, 50px 500px;
+    z-index: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 700'%3E%3Cg%3E%3Crect x='36' y='160' width='8' height='540' rx='4' fill='%233d2b1f' opacity='0.08'/%3E%3Crect x='30' y='145' width='20' height='25' rx='3' fill='%235a4030' opacity='0.07'/%3E%3Cellipse cx='40' cy='120' rx='20' ry='35' fill='%23c9620e' opacity='0.06'/%3E%3Cellipse cx='40' cy='108' rx='14' ry='25' fill='%23d4960a' opacity='0.06'/%3E%3Cellipse cx='40' cy='96' rx='8' ry='16' fill='%23e8a828' opacity='0.05'/%3E%3C/g%3E%3C/svg%3E") no-repeat center top;
+    background-size: 80px 700px;
 }
+.torch-left { left: 10px; }
+.torch-right { right: 10px; transform: scaleX(-1); }
 
 /* Twisted rope border under nav */
 nav::before {
@@ -315,11 +307,10 @@ nav::after {
 .card {
     background: #f7f3e8;
     border: 1px solid rgba(180,160,130,0.5);
-    border-left: 3px solid transparent;
-    border-image: linear-gradient(180deg, var(--ember-red), var(--torch-orange), var(--torch-yellow)) 1;
-    border-image-slice: 0 0 0 3;
+    border-left: none;
     border-radius: 8px 4px 8px 4px;
     padding: 1.25rem;
+    padding-left: calc(1.25rem + 3px);
     margin-bottom: 1rem;
     box-shadow:
         0 1px 4px rgba(0,0,0,0.05),
@@ -330,10 +321,24 @@ nav::after {
         inset 2px 0 8px rgba(201,98,14,0.03);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     position: relative;
+    overflow: hidden;
+}
+
+/* Flame gradient left border (works with border-radius) */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--ember-red), var(--torch-orange), var(--torch-yellow));
+    border-radius: 8px 0 0 8px;
+    z-index: 2;
 }
 
 /* Parchment texture on cards */
-.card::before {
+.card::after {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -343,6 +348,7 @@ nav::after {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 200px 200px;
+    z-index: 1;
 }
 
 .card:hover {
