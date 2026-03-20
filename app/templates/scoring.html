@@ -288,7 +288,8 @@ function showQuickScoreHighlights(lines) {
     </div>`;
     html += `<div class="form-group" style="margin-bottom:0.5rem;">
         <label>Notes</label>
-        <textarea id="episode-summary-text" rows="5" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(text)}</textarea>
+        <textarea id="episode-summary-text" rows="8" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(text)}</textarea>
+        <div style="font-size:0.72rem;color:var(--mud);margin-top:0.25rem;">Formatting: **bold**, ## Header, blank lines for spacing</div>
     </div>`;
     html += `<button class="btn btn-sm btn-green" onclick="saveSummary()" style="margin-top:0.25rem;">Save</button>`;
     html += `<span id="summary-save-feedback" style="font-size:0.8rem;color:var(--green);margin-left:0.5rem;display:none;">Saved!</span>`;

@@ -279,6 +279,46 @@ async function sendChat(e) {
     }
 }
 
+// === Recap Formatter (simple Markdown → HTML) ===
+function formatRecap(text) {
+    // Escape HTML first
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Split into paragraphs by double newlines
+    const paragraphs = escaped.split(/\n\s*\n/);
+
+    return paragraphs.map(para => {
+        // Process each paragraph's lines
+        const lines = para.split('\n').map(line => {
+            // ## Headers → styled h4
+            if (/^##\s+(.+)$/.test(line)) {
+                const heading = line.replace(/^##\s+/, '');
+                return `<h4 style="font-family:'Cinzel',serif;color:var(--torch-orange);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin:0.75rem 0 0.25rem;font-weight:700;">${heading}</h4>`;
+            }
+            // Lines that are ALL CAPS (at least 3 chars) → treat as header
+            if (/^[A-Z][A-Z &\/\-]{2,}$/.test(line.trim())) {
+                return `<h4 style="font-family:'Cinzel',serif;color:var(--torch-orange);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin:0.75rem 0 0.25rem;font-weight:700;">${line.trim()}</h4>`;
+            }
+            // **bold** → <strong> with accent color
+            let formatted = line.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--sand);font-family:\'Cinzel\',serif;letter-spacing:0.03em;">$1</strong>');
+            // - bullet lines
+            if (/^\s*-\s+/.test(formatted)) {
+                const content = formatted.replace(/^\s*-\s+/, '');
+                return `<div style="padding-left:1rem;position:relative;margin:0.15rem 0;"><span style="position:absolute;left:0;color:var(--torch-orange);">&#x2022;</span>${content}</div>`;
+            }
+            return formatted;
+        });
+
+        // Join lines within a paragraph
+        const joined = lines.join('\n');
+        // If it's all headers/bullets, don't wrap in <p>
+        if (joined.includes('<h4') || joined.includes('padding-left:1rem')) {
+            return joined;
+        }
+        return `<p style="margin:0 0 0.5rem;">${joined}</p>`;
+    }).join('<div style="margin:0.6rem 0;"></div>'); // paragraph spacing
+}
+
 // === Latest Episode Recap ===
 async function loadLatestRecap(seasonId, lb) {
     const recapContainer = document.getElementById('recap-content');
@@ -335,11 +375,7 @@ async function loadLatestRecap(seasonId, lb) {
         html += '<div class="card">';
         html += '<h3 class="card-header">Recap</h3>';
         if (recap.episode_description) {
-            const desc = recap.episode_description
-                .split('\n')
-                .map(line => `<div style="margin-bottom:0.3rem;">${line}</div>`)
-                .join('');
-            html += `<div style="font-size:0.9rem;line-height:1.7;color:var(--bone);">${desc}</div>`;
+            html += `<div class="recap-body">${formatRecap(recap.episode_description)}</div>`;
         } else {
             html += '<p class="text-muted" style="font-size:0.9rem;">No recap written for this episode.</p>';
         }

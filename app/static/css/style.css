@@ -1080,6 +1080,23 @@ tr:hover td { background: rgba(201,98,14,0.04); }
     h1 { font-size: 1.1rem; letter-spacing: 0.08em; }
 }
 
+/* === Recap Body === */
+.recap-body {
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--bone);
+}
+
+.recap-body h4 {
+    border-bottom: 1px solid rgba(201,98,14,0.2);
+    padding-bottom: 0.2rem;
+}
+
+.recap-body p {
+    margin: 0 0 0.5rem;
+}
+
 /* === Loading === */
 .loading {
     text-align: center;
