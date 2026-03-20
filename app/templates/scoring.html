@@ -23,6 +23,10 @@
                 <input type="number" id="new-ep-number" min="1">
             </div>
             <div class="form-group">
+                <label>Episode Title</label>
+                <input type="text" id="new-ep-title" placeholder="e.g. The Merge Feast">
+            </div>
+            <div class="form-group">
                 <label>Options</label>
                 <div style="display:flex;gap:1rem;padding-top:0.25rem">
                     <label style="display:flex;align-items:center;gap:0.25rem;font-size:0.8rem">
@@ -128,8 +132,10 @@ async function submitNewEpisode() {
     const alertBox = document.getElementById('scoring-alert');
     try {
         const isMerge = document.getElementById('new-ep-merge').checked;
+        const title = document.getElementById('new-ep-title').value.trim() || null;
         const ep = await apiPost(`/api/seasons/${currentSeasonId}/episodes`, {
             episode_number: parseInt(document.getElementById('new-ep-number').value),
+            title: title,
             is_merge: isMerge,
             is_finale: document.getElementById('new-ep-finale').checked,
         });
@@ -270,21 +276,39 @@ function showQuickScoreHighlights(lines) {
     const plainLines = lines.map(l => l.replace(/&bull; /g, '- ').replace(/&[^;]+;/g, ''));
     const text = plainLines.join('\n');
 
+    // Get current episode title from dropdown
+    const epSelect = document.getElementById('episode-select');
+    const currentTitle = epSelect.options[epSelect.selectedIndex]?.text.replace(/^Ep \d+: /, '').replace(/ \[SCORED\]$/, '') || '';
+    const titleVal = currentTitle === 'Untitled' ? '' : currentTitle;
+
     let html = '<h3 class="card-header" style="color:#2ecc71;">Episode Summary</h3>';
-    html += `<textarea id="episode-summary-text" rows="6" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(text)}</textarea>`;
-    html += `<button class="btn btn-sm btn-green" onclick="saveSummary()" style="margin-top:0.5rem;">Save Summary</button>`;
+    html += `<div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Title</label>
+        <input type="text" id="episode-summary-title" value="${escapeHtml(titleVal)}" placeholder="Episode title..." style="font-size:0.95rem;">
+    </div>`;
+    html += `<div class="form-group" style="margin-bottom:0.5rem;">
+        <label>Notes</label>
+        <textarea id="episode-summary-text" rows="5" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(text)}</textarea>
+    </div>`;
+    html += `<button class="btn btn-sm btn-green" onclick="saveSummary()" style="margin-top:0.25rem;">Save</button>`;
     html += `<span id="summary-save-feedback" style="font-size:0.8rem;color:var(--green);margin-left:0.5rem;display:none;">Saved!</span>`;
     card.innerHTML = html;
     container.appendChild(card);
 }
 
 async function saveSummary() {
-    if (!wizardEpisodeId) return;
+    const epId = wizardEpisodeId || document.getElementById('episode-select').value;
+    if (!epId) return;
     const text = document.getElementById('episode-summary-text').value;
+    const title = document.getElementById('episode-summary-title').value.trim() || null;
     try {
-        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${wizardEpisodeId}`, {
+        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${epId}`, {
+            title: title,
             description: text,
         });
+        // Refresh episode dropdown to show new title
+        await loadEpisodes();
+        document.getElementById('episode-select').value = epId;
         const fb = document.getElementById('summary-save-feedback');
         fb.style.display = 'inline';
         setTimeout(() => fb.style.display = 'none', 2000);
