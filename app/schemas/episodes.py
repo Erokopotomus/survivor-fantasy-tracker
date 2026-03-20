@@ -39,13 +39,6 @@ class EpisodeResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class AiCreateRequest(BaseModel):
-    episode_number: int = Field(..., gt=0)
-    is_merge: bool = False
-    is_finale: bool = False
-    recap_text: str | None = None
-
-
 class CastawayEventInput(BaseModel):
     castaway_id: int
     event_data: dict
@@ -91,26 +84,3 @@ class ScoringTemplateResponse(BaseModel):
     castaways: list[TemplateCastawayItem]
 
 
-# --- AI Scoring ---
-
-class AiScoringRequest(BaseModel):
-    recap_text: str | None = None
-
-
-class AiCastawaySuggestion(BaseModel):
-    castaway_id: int
-    castaway_name: str
-    event_data: dict
-    confidence_notes: dict = {}
-
-
-class AiScoringResponse(BaseModel):
-    episode_id: int
-    episode_number: int
-    suggestions: list[AiCastawaySuggestion]
-    episode_title: str = ""
-    episode_description: str = ""
-    episode_summary: str = ""
-    episode_highlights: dict = {}
-    eliminated: list[str] = []
-    notes: str = ""

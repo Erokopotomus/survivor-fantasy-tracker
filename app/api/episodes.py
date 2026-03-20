@@ -10,13 +10,12 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.models import (
     Episode, Season, SeasonStatus, Castaway, CastawayStatus,
-    CastawayEpisodeEvent, ScoringRule,
+    CastawayEpisodeEvent,
 )
 from app.schemas.episodes import (
     EpisodeCreate, EpisodeUpdate, EpisodeResponse,
     EpisodeScoreSubmit, EpisodeScoreResponse, CastawayScoreResult,
     ScoringTemplateResponse, TemplateRuleItem, TemplateCastawayItem,
-    AiScoringRequest, AiScoringResponse, AiCreateRequest,
 )
 from app.api.deps import get_current_user, require_commissioner
 from app.models.models import FantasyPlayer
@@ -294,116 +293,6 @@ async def delete_episode(
     await db.delete(episode)
 
 
-@router.post("/ai-create", response_model=AiScoringResponse, status_code=201)
-async def ai_create_episode(
-    season_id: int,
-    body: AiCreateRequest,
-    db: AsyncSession = Depends(get_db),
-    _: FantasyPlayer = Depends(require_commissioner),
-):
-    """Create episode + generate AI title, description, and scoring suggestions in one step."""
-    settings = get_settings()
-    if not settings.anthropic_api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="ANTHROPIC_API_KEY not configured. Add it to .env or Railway env vars.",
-        )
-
-    season = await _get_season_or_404(db, season_id)
-    current = season.status if isinstance(season.status, SeasonStatus) else SeasonStatus(season.status)
-    if current != SeasonStatus.ACTIVE:
-        raise HTTPException(status_code=400, detail="Season must be active to add episodes")
-
-    # Reuse existing unscored episode with same number (retry-safe), or create new
-    existing_result = await db.execute(
-        select(Episode).where(
-            Episode.season_id == season_id,
-            Episode.episode_number == body.episode_number,
-        )
-    )
-    episode = existing_result.scalar_one_or_none()
-    if episode and episode.is_scored:
-        raise HTTPException(status_code=409, detail=f"Episode {body.episode_number} already scored.")
-    if not episode:
-        episode = Episode(
-            season_id=season_id,
-            episode_number=body.episode_number,
-            is_merge=body.is_merge,
-            is_finale=body.is_finale,
-        )
-        db.add(episode)
-        await db.flush()
-        await db.refresh(episode)
-    else:
-        # Update flags on retry
-        episode.is_merge = body.is_merge
-        episode.is_finale = body.is_finale
-        await db.flush()
-
-    # Call AI for scoring suggestions + title + description
-    from app.services.ai_scoring import generate_scoring_suggestions
-
-    try:
-        result = await generate_scoring_suggestions(
-            db, season_id, episode.id, body.recap_text
-        )
-    except Exception as e:
-        # Episode was created but AI failed — still return what we have
-        logger.error("AI generation failed for episode %s: %s", episode.id, e)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Episode created (#{body.episode_number}) but AI generation failed: {e}",
-        )
-
-    # Save AI-generated title and description to the episode
-    if result.get("episode_title"):
-        episode.title = result["episode_title"]
-    if result.get("episode_description"):
-        episode.description = result["episode_description"]
-    await db.flush()
-    await db.commit()
-
-    return result
-
-
-@router.post("/{episode_id}/ai-suggest", response_model=AiScoringResponse)
-async def ai_scoring_suggest(
-    season_id: int,
-    episode_id: int,
-    body: AiScoringRequest,
-    db: AsyncSession = Depends(get_db),
-    _: FantasyPlayer = Depends(require_commissioner),
-):
-    """Use Claude to generate scoring suggestions for an episode."""
-    settings = get_settings()
-    if not settings.anthropic_api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="ANTHROPIC_API_KEY not configured. Add it to .env or Railway env vars.",
-        )
-
-    await _get_season_or_404(db, season_id)
-    await _get_episode_or_404(db, season_id, episode_id)
-
-    from app.services.ai_scoring import generate_scoring_suggestions
-
-    try:
-        result = await generate_scoring_suggestions(
-            db, season_id, episode_id, body.recap_text
-        )
-        return result
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="AI request timed out. Try again.")
-    except httpx.HTTPStatusError as e:
-        logger.error("Claude API error: %s %s", e.response.status_code, e.response.text[:300])
-        raise HTTPException(
-            status_code=502,
-            detail=f"Claude API error ({e.response.status_code}). Check your API key.",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
-
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
@@ -467,7 +356,7 @@ async def parse_confessionals(
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
-    # Map AI-returned names to castaway IDs (same fuzzy logic as parse_ai_suggestions)
+    # Map AI-returned names to castaway IDs
     results = []
     for raw_name, count in raw_counts.items():
         # Exact match
