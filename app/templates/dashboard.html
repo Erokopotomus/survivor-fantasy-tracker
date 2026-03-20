@@ -51,6 +51,9 @@
 
     <!-- Rosters: full width below -->
     <div id="rosters-content" class="hidden"></div>
+
+    <!-- Latest Episode Recap -->
+    <div id="recap-content" class="hidden"></div>
 </div>
 {% endblock %}
 
@@ -166,6 +169,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadChat(seasonId);
         // Poll chat every 15 seconds
         setInterval(() => loadChat(seasonId), 15000);
+
+        // Load latest episode recap
+        await loadLatestRecap(seasonId, lb);
     } catch (err) {
         document.getElementById('leaderboard-loading').innerHTML = `<p class="alert alert-error">${err.message}</p>`;
     }
@@ -270,6 +276,110 @@ async function sendChat(e) {
         await loadChat(seasonId);
     } catch (err) {
         alert('Send failed: ' + err.message);
+    }
+}
+
+// === Latest Episode Recap ===
+async function loadLatestRecap(seasonId, lb) {
+    const recapContainer = document.getElementById('recap-content');
+
+    try {
+        // Fetch episodes and find the latest scored one
+        const episodes = await apiGet(`/api/seasons/${seasonId}/episodes`);
+        const scoredEps = episodes.filter(e => e.is_scored).sort((a, b) => b.episode_number - a.episode_number);
+        if (scoredEps.length === 0) return;
+
+        const latestEp = scoredEps[0];
+        const recap = await apiGet(`/api/seasons/${seasonId}/weekly-recap/${latestEp.episode_number}`);
+
+        // Build castaway→tribe map from leaderboard roster_breakdown
+        const castawayTribeMap = {};
+        if (lb && lb.entries) {
+            for (const entry of lb.entries) {
+                for (const c of entry.roster_breakdown) {
+                    if (c.castaway_name && c.current_tribe) {
+                        castawayTribeMap[c.castaway_name] = c.current_tribe;
+                    }
+                }
+            }
+        }
+        // Also fetch all castaways for tribe info on non-drafted castaways
+        try {
+            const allCastaways = await apiGet(`/api/seasons/${seasonId}/castaways`);
+            for (const c of allCastaways) {
+                if (c.name && c.current_tribe) castawayTribeMap[c.name] = c.current_tribe;
+            }
+        } catch (e) { /* non-critical */ }
+
+        // Group castaway scores by tribe
+        const tribeGroups = {};
+        for (const cs of recap.castaway_scores) {
+            const tribe = castawayTribeMap[cs.castaway_name] || 'Unknown';
+            if (!tribeGroups[tribe]) tribeGroups[tribe] = [];
+            tribeGroups[tribe].push(cs);
+        }
+        // Sort tribes alphabetically, sort castaways within by score desc
+        const sortedTribes = Object.keys(tribeGroups).sort();
+        for (const t of sortedTribes) {
+            tribeGroups[t].sort((a, b) => b.episode_score - a.episode_score);
+        }
+
+        // Build HTML — split layout
+        let html = '<h2 class="mt-2 mb-1">Latest Episode</h2>';
+        const title = recap.episode_title || `Episode ${recap.episode_number}`;
+        html += `<div style="font-family:'Almendra',serif;font-style:italic;color:var(--mud);margin-bottom:1rem;font-size:0.95rem;">Episode ${recap.episode_number}: ${title}</div>`;
+
+        html += '<div class="dashboard-grid" style="gap:1.5rem;align-items:start;">';
+
+        // Left: Write-up
+        html += '<div class="card">';
+        html += '<h3 class="card-header">Recap</h3>';
+        if (recap.episode_description) {
+            const desc = recap.episode_description
+                .split('\n')
+                .map(line => `<div style="margin-bottom:0.3rem;">${line}</div>`)
+                .join('');
+            html += `<div style="font-size:0.9rem;line-height:1.7;color:var(--bone);">${desc}</div>`;
+        } else {
+            html += '<p class="text-muted" style="font-size:0.9rem;">No recap written for this episode.</p>';
+        }
+        html += '</div>';
+
+        // Right: Score table grouped by tribe
+        html += '<div class="card">';
+        html += '<h3 class="card-header">Episode Scores</h3>';
+        html += '<table><thead><tr><th>Castaway</th><th style="text-align:right;">Score</th><th>Drafted By</th></tr></thead><tbody>';
+
+        for (const tribe of sortedTribes) {
+            const tc = getTribeColor(tribe);
+            const colSpan = 3;
+            html += `<tr><td colspan="${colSpan}" style="background:${tc}18;border-left:3px solid ${tc};padding:0.3rem 0.75rem;font-weight:700;color:${tc};font-size:0.8rem;font-family:'Cinzel',serif;text-transform:uppercase;letter-spacing:0.08em;">${tribe}</td></tr>`;
+
+            for (const cs of tribeGroups[tribe]) {
+                const scoreColor = cs.episode_score > 0 ? 'var(--green)' : cs.episode_score < 0 ? 'var(--ember-red)' : 'var(--mud)';
+                const draftedBy = cs.drafted_by.length > 0
+                    ? cs.drafted_by.map(p => {
+                        const pc = getPlayerColor(p);
+                        return `<span style="color:${pc.accent};font-weight:600;">${p}</span>`;
+                    }).join(', ')
+                    : '<span class="text-muted">—</span>';
+
+                html += `<tr style="border-left:3px solid ${tc};">
+                    <td style="font-family:'Almendra',serif;font-weight:600;">${cs.castaway_name}</td>
+                    <td style="text-align:right;"><span class="score" style="color:${scoreColor};">${cs.episode_score.toFixed(2)}</span></td>
+                    <td style="font-size:0.8rem;">${draftedBy}</td>
+                </tr>`;
+            }
+        }
+
+        html += '</tbody></table></div>';
+        html += '</div>'; // close grid
+
+        recapContainer.innerHTML = html;
+        recapContainer.classList.remove('hidden');
+    } catch (e) {
+        // Non-critical — just don't show recap section
+        console.warn('Could not load episode recap:', e);
     }
 }
 </script>
