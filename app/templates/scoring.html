@@ -266,14 +266,31 @@ function showQuickScoreHighlights(lines) {
     card.style.marginTop = '1rem';
     card.style.borderLeft = '3px solid #2ecc71';
 
+    // Convert HTML entities to plain text for textarea
+    const plainLines = lines.map(l => l.replace(/&bull; /g, '- ').replace(/&[^;]+;/g, ''));
+    const text = plainLines.join('\n');
+
     let html = '<h3 class="card-header" style="color:#2ecc71;">Episode Summary</h3>';
-    html += '<div style="font-size:0.9rem;line-height:1.6;">';
-    for (const line of lines) {
-        html += `<div>${line}</div>`;
-    }
-    html += '</div>';
+    html += `<textarea id="episode-summary-text" rows="6" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(text)}</textarea>`;
+    html += `<button class="btn btn-sm btn-green" onclick="saveSummary()" style="margin-top:0.5rem;">Save Summary</button>`;
+    html += `<span id="summary-save-feedback" style="font-size:0.8rem;color:var(--green);margin-left:0.5rem;display:none;">Saved!</span>`;
     card.innerHTML = html;
     container.appendChild(card);
+}
+
+async function saveSummary() {
+    if (!wizardEpisodeId) return;
+    const text = document.getElementById('episode-summary-text').value;
+    try {
+        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${wizardEpisodeId}`, {
+            description: text,
+        });
+        const fb = document.getElementById('summary-save-feedback');
+        fb.style.display = 'inline';
+        setTimeout(() => fb.style.display = 'none', 2000);
+    } catch (e) {
+        showAlert(document.getElementById('scoring-alert'), 'Failed to save summary: ' + e.message);
+    }
 }
 
 async function submitWizard() {
@@ -402,14 +419,16 @@ async function submitWizard() {
     // Show summary card
     showQuickScoreHighlights(summaryLines);
 
-    // Save description to episode (non-critical)
-    const descText = summaryLines.map(l => l.replace('&bull; ', '- ').replace(/&[^;]+;/g, '')).join('\n');
-    try {
-        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${wizardEpisodeId}`, {
-            description: descText,
-        });
-    } catch (e) {
-        // Non-critical — ignore
+    // Save initial description to episode (non-critical)
+    const summaryTextarea = document.getElementById('episode-summary-text');
+    if (summaryTextarea) {
+        try {
+            await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${wizardEpisodeId}`, {
+                description: summaryTextarea.value,
+            });
+        } catch (e) {
+            // Non-critical — ignore
+        }
     }
 
     showAlert(document.getElementById('scoring-alert'), 'Grid pre-filled from wizard answers. Review and submit.', 'success');
