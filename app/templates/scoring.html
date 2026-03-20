@@ -34,30 +34,17 @@
                 </div>
             </div>
         </div>
-        <div class="form-group">
-            <label>Episode Recap (optional — improves AI accuracy)</label>
-            <textarea id="new-ep-recap" rows="4" placeholder="Paste an episode recap or key moments for better AI scoring..." style="width:100%;resize:vertical;"></textarea>
+        <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+            <button class="btn" onclick="submitNewEpisode()" style="flex:1;padding:0.75rem;font-size:1rem;">Create Episode</button>
         </div>
-        <div class="form-group">
-            <label>Confessional Counts Screenshot (optional)</label>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-                <button type="button" class="btn btn-outline" onclick="document.getElementById('new-ep-confessional-file').click()" style="padding:0.5rem 1rem;border-color:#d4930d;color:#d4930d;">
-                    &#128247; Attach Screenshot
-                </button>
-                <input type="file" id="new-ep-confessional-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewConfessionalAttachment(this)">
-                <span id="confessional-attachment-name" style="font-size:0.8rem;color:var(--text-muted);"></span>
-                <button type="button" id="confessional-attachment-clear" class="hidden" onclick="clearConfessionalAttachment()" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:0.8rem;">&#x2715; Remove</button>
-            </div>
-            <div id="confessional-attachment-preview" class="hidden" style="margin-top:0.5rem;">
-                <img id="confessional-preview-img" style="max-height:80px;border-radius:4px;border:1px solid var(--border-color);">
-            </div>
-        </div>
-        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-            <button class="btn" onclick="aiCreateEpisode()" id="ai-create-btn" style="flex:2;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">
-                <span style="margin-right:0.5rem;">&#9733;</span> Create &amp; Score with AI
-            </button>
-            <button class="btn btn-outline" onclick="submitNewEpisode()" style="flex:1;padding:0.75rem;">Create Only (Manual)</button>
-            <span id="ai-create-loading" class="hidden"><span class="spinner"></span> Creating &amp; scoring...</span>
+    </div>
+
+    <div id="quick-score-wizard" class="card hidden">
+        <h3 class="card-header">Quick Score</h3>
+        <div id="wizard-steps"></div>
+        <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+            <button class="btn" onclick="submitWizard()" id="wizard-submit-btn">Pre-fill Grid</button>
+            <button class="btn btn-outline" onclick="cancelWizard()">Cancel</button>
         </div>
     </div>
 
@@ -70,6 +57,8 @@
 <script>
 let currentSeasonId = null;
 let currentTemplate = null;
+let wizardEpisodeId = null;
+let wizardIsMerge = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const auth = requireAuth();
@@ -138,126 +127,295 @@ function createNewEpisode() {
 async function submitNewEpisode() {
     const alertBox = document.getElementById('scoring-alert');
     try {
+        const isMerge = document.getElementById('new-ep-merge').checked;
         const ep = await apiPost(`/api/seasons/${currentSeasonId}/episodes`, {
             episode_number: parseInt(document.getElementById('new-ep-number').value),
-            is_merge: document.getElementById('new-ep-merge').checked,
+            is_merge: isMerge,
             is_finale: document.getElementById('new-ep-finale').checked,
         });
         showAlert(alertBox, `Episode ${ep.episode_number} created!`, 'success');
         document.getElementById('new-episode-form').classList.add('hidden');
         await loadEpisodes();
         document.getElementById('episode-select').value = ep.id;
-        loadTemplate();
+        await loadTemplate();
+        showWizard(ep.id, isMerge, currentTemplate);
     } catch (err) {
         showAlert(alertBox, err.message);
     }
 }
 
-function previewConfessionalAttachment(fileInput) {
-    const nameSpan = document.getElementById('confessional-attachment-name');
-    const clearBtn = document.getElementById('confessional-attachment-clear');
-    const previewDiv = document.getElementById('confessional-attachment-preview');
-    const previewImg = document.getElementById('confessional-preview-img');
+// --- Quick Score Wizard ---
 
-    if (fileInput.files.length) {
-        const file = fileInput.files[0];
-        nameSpan.textContent = file.name;
-        clearBtn.classList.remove('hidden');
-        previewImg.src = URL.createObjectURL(file);
-        previewDiv.classList.remove('hidden');
+function showWizard(episodeId, isMerge, template) {
+    wizardEpisodeId = episodeId;
+    wizardIsMerge = isMerge;
+    const stepsDiv = document.getElementById('wizard-steps');
+    const castaways = template.castaways.filter(c => c.status === 'active' || !c.status);
+    const tribes = [...new Set(castaways.map(c => c.tribe).filter(Boolean))].sort();
+
+    // Build tribe→castaways map
+    const tribeCastaways = {};
+    for (const c of castaways) {
+        const t = c.tribe || 'Unknown';
+        if (!tribeCastaways[t]) tribeCastaways[t] = [];
+        tribeCastaways[t].push(c);
+    }
+
+    let html = '';
+
+    if (!isMerge) {
+        // Pre-merge prompts
+        html += buildFormGroup('wizard-tribe-changes', 'Any tribe changes?', 'text', 'No');
+
+        html += buildSelectGroup('wizard-immunity-1st', 'Immunity — 1st Place Tribe', tribes);
+        html += buildSelectGroup('wizard-immunity-2nd', 'Immunity — 2nd Place Tribe', ['N/A', ...tribes]);
+
+        const rewardOpts = ['No reward', 'Same as immunity winner', ...tribes];
+        html += buildSelectGroup('wizard-reward-tribe', 'Reward Challenge — Winning Tribe', rewardOpts);
+
+        html += `<div class="form-group" style="margin-bottom:0.75rem;">
+            <label style="font-size:0.85rem;font-weight:600;">Which tribe went to Tribal Council?</label>
+            <select id="wizard-tribal-tribe" onchange="updateVotedOutOptions()" style="width:100%;padding:0.4rem;">
+                <option value="">Select...</option>
+                ${tribes.map(t => `<option value="${t}">${t}</option>`).join('')}
+            </select>
+        </div>`;
+
+        html += `<div class="form-group" style="margin-bottom:0.75rem;">
+            <label style="font-size:0.85rem;font-weight:600;">Who was voted out?</label>
+            <select id="wizard-voted-out" style="width:100%;padding:0.4rem;">
+                <option value="">Select tribe first...</option>
+            </select>
+        </div>`;
+
+    } else {
+        // Post-merge prompts
+        const castawayNames = castaways.map(c => c.castaway_name).sort();
+
+        html += buildSelectGroup('wizard-individual-immunity', 'Who won Individual Immunity?', castawayNames);
+        html += buildSelectGroup('wizard-reward-winner', 'Reward Challenge Winner', ['No reward', ...castawayNames]);
+
+        html += buildSelectGroup('wizard-voted-out', 'Who was voted out?', ['Nobody', ...castawayNames]);
+    }
+
+    // Both phases
+    html += buildFormGroup('wizard-idols', 'Idols / Advantages found, played, or used?', 'text', 'None');
+
+    stepsDiv.innerHTML = html;
+
+    // Store castaways data on the wizard for later use
+    stepsDiv.dataset.castawaysJson = JSON.stringify(castaways);
+    stepsDiv.dataset.tribeCastawaysJson = JSON.stringify(tribeCastaways);
+
+    document.getElementById('quick-score-wizard').classList.remove('hidden');
+}
+
+function buildFormGroup(id, label, type, placeholder) {
+    return `<div class="form-group" style="margin-bottom:0.75rem;">
+        <label style="font-size:0.85rem;font-weight:600;">${label}</label>
+        <input type="${type}" id="${id}" placeholder="${placeholder || ''}" style="width:100%;padding:0.4rem;">
+    </div>`;
+}
+
+function buildSelectGroup(id, label, options) {
+    const optionsHtml = options.map(o => `<option value="${o}">${o}</option>`).join('');
+    return `<div class="form-group" style="margin-bottom:0.75rem;">
+        <label style="font-size:0.85rem;font-weight:600;">${label}</label>
+        <select id="${id}" style="width:100%;padding:0.4rem;">
+            ${optionsHtml}
+        </select>
+    </div>`;
+}
+
+function updateVotedOutOptions() {
+    const tribalTribe = document.getElementById('wizard-tribal-tribe').value;
+    const votedOutSelect = document.getElementById('wizard-voted-out');
+    const tribeCastaways = JSON.parse(document.getElementById('wizard-steps').dataset.tribeCastawaysJson);
+
+    votedOutSelect.innerHTML = '<option value="">Nobody</option>';
+    if (tribalTribe && tribeCastaways[tribalTribe]) {
+        for (const c of tribeCastaways[tribalTribe].sort((a, b) => a.castaway_name.localeCompare(b.castaway_name))) {
+            votedOutSelect.innerHTML += `<option value="${c.castaway_name}">${c.castaway_name}</option>`;
+        }
     }
 }
 
-function clearConfessionalAttachment() {
-    document.getElementById('new-ep-confessional-file').value = '';
-    document.getElementById('confessional-attachment-name').textContent = '';
-    document.getElementById('confessional-attachment-clear').classList.add('hidden');
-    document.getElementById('confessional-attachment-preview').classList.add('hidden');
+function cancelWizard() {
+    document.getElementById('quick-score-wizard').classList.add('hidden');
 }
 
-async function aiCreateEpisode() {
-    const alertBox = document.getElementById('scoring-alert');
-    const epNum = document.getElementById('new-ep-number').value;
-    if (!epNum) {
-        showAlert(alertBox, 'Enter an episode number.');
-        return;
+function setRule(row, ruleKey, value) {
+    const input = row.querySelector(`[data-rule="${ruleKey}"]`);
+    if (!input) return;
+    if (input.tagName === 'SELECT') {
+        input.value = value ? '1' : '0';
+    } else {
+        input.value = value;
     }
+}
 
-    const createBtn = document.getElementById('ai-create-btn');
-    const loadingSpan = document.getElementById('ai-create-loading');
-    createBtn.disabled = true;
-    loadingSpan.classList.remove('hidden');
+function showQuickScoreHighlights(lines) {
+    // Remove existing summary card if present
+    const existing = document.getElementById('quick-score-summary');
+    if (existing) existing.remove();
 
-    try {
-        const result = await apiPost(`/api/seasons/${currentSeasonId}/episodes/ai-create`, {
-            episode_number: parseInt(epNum),
-            is_merge: document.getElementById('new-ep-merge').checked,
-            is_finale: document.getElementById('new-ep-finale').checked,
-            recap_text: document.getElementById('new-ep-recap').value || null,
-        });
+    const container = document.getElementById('scoring-grid-container');
+    const card = document.createElement('div');
+    card.id = 'quick-score-summary';
+    card.className = 'card';
+    card.style.marginTop = '1rem';
+    card.style.borderLeft = '3px solid #2ecc71';
 
-        // Episode created — hide form, refresh dropdown
-        document.getElementById('new-episode-form').classList.add('hidden');
-        await loadEpisodes();
+    let html = '<h3 class="card-header" style="color:#2ecc71;">Episode Summary</h3>';
+    html += '<div style="font-size:0.9rem;line-height:1.6;">';
+    for (const line of lines) {
+        html += `<div>${line}</div>`;
+    }
+    html += '</div>';
+    card.innerHTML = html;
+    container.appendChild(card);
+}
 
-        // Select the new episode and load its template
-        document.getElementById('episode-select').value = result.episode_id;
-        await loadTemplate();
+async function submitWizard() {
+    const stepsDiv = document.getElementById('wizard-steps');
+    const castaways = JSON.parse(stepsDiv.dataset.castawaysJson);
+    const tribeCastaways = JSON.parse(stepsDiv.dataset.tribeCastawaysJson);
 
-        // Pre-fill the grid with AI suggestions
-        populateGridFromAi(result.suggestions, result.eliminated);
-        showAiNotes(result);
+    const summaryLines = [];
 
-        const title = result.episode_title ? ` — "${result.episode_title}"` : '';
-        let msg = `Episode ${result.episode_number} created${title}. AI filled ${result.suggestions.length} castaways.`;
+    if (!wizardIsMerge) {
+        // --- Pre-merge logic ---
+        const immunity1st = document.getElementById('wizard-immunity-1st').value;
+        const immunity2nd = document.getElementById('wizard-immunity-2nd').value;
+        const rewardTribe = document.getElementById('wizard-reward-tribe').value;
+        const tribalTribe = document.getElementById('wizard-tribal-tribe').value;
+        const votedOut = document.getElementById('wizard-voted-out').value;
+        const idolsText = document.getElementById('wizard-idols').value.trim() || 'None';
 
-        // If confessional screenshot was attached, parse it now
-        const confFile = document.getElementById('new-ep-confessional-file');
-        if (confFile.files.length) {
-            loadingSpan.innerHTML = '<span class="spinner"></span> Parsing confessionals...';
-            try {
-                const formData = new FormData();
-                formData.append('file', confFile.files[0]);
-                const auth = getAuth();
-                const resp = await fetch(`/api/seasons/${currentSeasonId}/episodes/${result.episode_id}/parse-confessionals`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${auth.access_token}` },
-                    body: formData,
-                });
-                if (!resp.ok) {
-                    const err = await resp.json();
-                    throw new Error(err.detail || 'Parse failed');
-                }
-                const confResult = await resp.json();
-                let matched = 0;
-                for (const entry of confResult.confessionals) {
-                    const row = document.querySelector(`tr[data-castaway-id="${entry.castaway_id}"]`);
-                    if (!row) continue;
-                    const input = row.querySelector('[data-rule="confessional_count"]');
-                    if (!input) continue;
-                    input.value = entry.count;
-                    const cell = input.closest('td');
-                    cell.classList.remove('ai-highlight');
-                    cell.removeAttribute('title');
-                    matched++;
-                }
-                msg += ` Confessionals filled for ${matched} castaways.`;
-            } catch (confErr) {
-                msg += ` Confessional parse failed: ${confErr.message}`;
+        // Immunity 1st
+        if (immunity1st) {
+            const members = tribeCastaways[immunity1st] || [];
+            for (const c of members) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (row) setRule(row, 'tribe_immunity_1st', 1);
             }
-            clearConfessionalAttachment();
         }
 
-        msg += ' Review and submit.';
-        showAlert(alertBox, msg, 'success');
-    } catch (err) {
-        showAlert(alertBox, `AI Create error: ${err.message}`);
-    } finally {
-        createBtn.disabled = false;
-        loadingSpan.classList.add('hidden');
-        loadingSpan.innerHTML = '<span class="spinner"></span> Creating &amp; scoring...';
+        // Immunity 2nd
+        if (immunity2nd && immunity2nd !== 'N/A') {
+            const members = tribeCastaways[immunity2nd] || [];
+            for (const c of members) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (row) setRule(row, 'tribe_immunity_2nd', 1);
+            }
+        }
+
+        // Reward
+        let actualRewardTribe = null;
+        if (rewardTribe === 'Same as immunity winner') {
+            actualRewardTribe = immunity1st;
+        } else if (rewardTribe && rewardTribe !== 'No reward') {
+            actualRewardTribe = rewardTribe;
+        }
+        if (actualRewardTribe) {
+            const members = tribeCastaways[actualRewardTribe] || [];
+            for (const c of members) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (row) setRule(row, 'tribe_reward_win', 1);
+            }
+        }
+
+        // Tribal council
+        if (tribalTribe) {
+            const tribalMembers = tribeCastaways[tribalTribe] || [];
+            for (const c of tribalMembers) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (!row) continue;
+                if (votedOut && c.castaway_name === votedOut) {
+                    setRule(row, 'survive_tribal', 0);
+                    const statusSelect = row.querySelector('[data-status]');
+                    if (statusSelect) statusSelect.value = 'eliminated';
+                } else {
+                    setRule(row, 'survive_tribal', 1);
+                }
+            }
+        }
+
+        // Summary
+        const immLine = immunity2nd && immunity2nd !== 'N/A'
+            ? `Immunity: ${immunity1st} (1st), ${immunity2nd} (2nd)`
+            : `Immunity: ${immunity1st}`;
+        summaryLines.push(`&bull; ${immLine}`);
+        summaryLines.push(`&bull; Reward: ${actualRewardTribe || 'No reward'}`);
+        summaryLines.push(`&bull; Tribal Council: ${tribalTribe || 'N/A'}`);
+        summaryLines.push(`&bull; Voted Out: ${votedOut || 'Nobody'}`);
+        summaryLines.push(`&bull; Notes: ${idolsText === 'None' ? 'No idols or advantages played' : escapeHtml(idolsText)}`);
+
+    } else {
+        // --- Post-merge logic ---
+        const immunityWinner = document.getElementById('wizard-individual-immunity').value;
+        const rewardWinner = document.getElementById('wizard-reward-winner').value;
+        const votedOut = document.getElementById('wizard-voted-out').value;
+        const idolsText = document.getElementById('wizard-idols').value.trim() || 'None';
+
+        // Individual immunity
+        if (immunityWinner) {
+            const c = castaways.find(x => x.castaway_name === immunityWinner);
+            if (c) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (row) setRule(row, 'individual_immunity_win', 1);
+            }
+        }
+
+        // Reward
+        if (rewardWinner && rewardWinner !== 'No reward') {
+            const c = castaways.find(x => x.castaway_name === rewardWinner);
+            if (c) {
+                const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+                if (row) setRule(row, 'solo_reward_win', 1);
+            }
+        }
+
+        // Survive tribal — everyone except voted out
+        for (const c of castaways) {
+            const row = document.querySelector(`tr[data-castaway-id="${c.castaway_id}"]`);
+            if (!row) continue;
+            if (votedOut && votedOut !== 'Nobody' && c.castaway_name === votedOut) {
+                setRule(row, 'survive_tribal', 0);
+                const statusSelect = row.querySelector('[data-status]');
+                if (statusSelect) statusSelect.value = 'eliminated';
+            } else {
+                setRule(row, 'survive_tribal', 1);
+            }
+        }
+
+        // Summary
+        summaryLines.push(`&bull; Individual Immunity: ${immunityWinner || 'N/A'}`);
+        summaryLines.push(`&bull; Reward: ${rewardWinner && rewardWinner !== 'No reward' ? rewardWinner : 'No reward'}`);
+        summaryLines.push(`&bull; Voted Out: ${votedOut && votedOut !== 'Nobody' ? votedOut : 'Nobody'}`);
+        summaryLines.push(`&bull; Notes: ${idolsText === 'None' ? 'No idols or advantages played' : escapeHtml(idolsText)}`);
     }
+
+    // Hide wizard
+    document.getElementById('quick-score-wizard').classList.add('hidden');
+
+    // Show summary card
+    showQuickScoreHighlights(summaryLines);
+
+    // Save description to episode (non-critical)
+    const descText = summaryLines.map(l => l.replace('&bull; ', '- ').replace(/&[^;]+;/g, '')).join('\n');
+    try {
+        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${wizardEpisodeId}`, {
+            description: descText,
+        });
+    } catch (e) {
+        // Non-critical — ignore
+    }
+
+    showAlert(document.getElementById('scoring-alert'), 'Grid pre-filled from wizard answers. Review and submit.', 'success');
 }
+
+// --- End Quick Score Wizard ---
 
 async function loadTemplate() {
     const epId = document.getElementById('episode-select').value;
@@ -401,11 +559,8 @@ function renderGrid(template) {
 
     html += '</tbody></table></div>';
 
-    // AI Assist + Confessional Upload + Submit buttons
+    // Confessional Upload + Submit buttons
     html += `<div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
-        <button class="btn" onclick="showAiPanel()" style="flex:1;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">
-            <span style="margin-right:0.5rem;">&#9733;</span> AI Assist
-        </button>
         <button class="btn" onclick="document.getElementById('confessional-file').click()" id="confessional-upload-btn" style="flex:1;padding:0.75rem;font-size:1rem;background:linear-gradient(135deg,#d4930d,#b8860b);border:none;">
             &#128247; Upload Confessionals
         </button>
@@ -414,205 +569,7 @@ function renderGrid(template) {
         <button class="btn" onclick="submitScores()" style="flex:2;padding:0.75rem;font-size:1rem">Submit Scores</button>
     </div>`;
 
-    // AI recap panel (hidden by default)
-    html += `<div id="ai-recap-panel" class="card hidden" style="margin-top:1rem;border:1px solid #7c3aed;">
-        <h3 class="card-header" style="color:#a78bfa;">AI Scoring Assistant</h3>
-        <div class="form-group">
-            <label>Episode Recap (optional)</label>
-            <textarea id="ai-recap-text" rows="5" placeholder="Paste an episode recap for better accuracy, or leave blank for best-guess scoring based on typical Survivor patterns..." style="width:100%;resize:vertical;"></textarea>
-        </div>
-        <div style="display:flex;gap:0.75rem;align-items:center;">
-            <button class="btn" onclick="runAiScoring()" id="ai-generate-btn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">Generate Suggestions</button>
-            <button class="btn btn-outline" onclick="hideAiPanel()">Cancel</button>
-            <span id="ai-loading" class="hidden"><span class="spinner"></span> Asking Claude...</span>
-        </div>
-    </div>`;
-
-    // AI notes card (hidden until results come back)
-    html += `<div id="ai-notes-card" class="card hidden" style="margin-top:1rem;border:1px solid #7c3aed;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 class="card-header" style="color:#a78bfa;margin:0;">Episode Highlights</h3>
-            <button class="btn btn-outline" onclick="toggleEditHighlights()" id="edit-highlights-btn" style="padding:0.3rem 0.75rem;font-size:0.8rem;">Edit</button>
-        </div>
-        <div id="ai-notes-content"></div>
-        <div id="ai-notes-edit" class="hidden" style="margin-top:0.5rem;"></div>
-    </div>`;
-
     container.innerHTML = html;
-}
-
-function showAiPanel() {
-    document.getElementById('ai-recap-panel').classList.remove('hidden');
-}
-
-function hideAiPanel() {
-    document.getElementById('ai-recap-panel').classList.add('hidden');
-}
-
-async function runAiScoring() {
-    const epId = document.getElementById('episode-select').value;
-    if (!epId) return;
-
-    const alertBox = document.getElementById('scoring-alert');
-    const recapText = document.getElementById('ai-recap-text').value;
-    const loading = document.getElementById('ai-loading');
-    const genBtn = document.getElementById('ai-generate-btn');
-
-    genBtn.disabled = true;
-    loading.classList.remove('hidden');
-
-    try {
-        const result = await apiPost(
-            `/api/seasons/${currentSeasonId}/episodes/${epId}/ai-suggest`,
-            { recap_text: recapText || null }
-        );
-        populateGridFromAi(result.suggestions, result.eliminated);
-        showAiNotes(result);
-        hideAiPanel();
-        showAlert(alertBox, `AI filled ${result.suggestions.length} castaways. Review and adjust before submitting.`, 'success');
-    } catch (err) {
-        showAlert(alertBox, `AI Assist error: ${err.message}`);
-    } finally {
-        genBtn.disabled = false;
-        loading.classList.add('hidden');
-    }
-}
-
-function populateGridFromAi(suggestions, eliminated) {
-    // Clear any previous AI highlights
-    document.querySelectorAll('.ai-highlight').forEach(el => {
-        el.classList.remove('ai-highlight');
-        el.removeAttribute('title');
-    });
-
-    // Build set of eliminated names for status auto-fill
-    const eliminatedNames = new Set((eliminated || []).map(n => n.toLowerCase()));
-
-    for (const s of suggestions) {
-        const row = document.querySelector(`tr[data-castaway-id="${s.castaway_id}"]`);
-        if (!row) continue;
-
-        for (const [ruleKey, value] of Object.entries(s.event_data)) {
-            const input = row.querySelector(`[data-rule="${ruleKey}"]`);
-            if (!input) continue;
-
-            if (input.tagName === 'SELECT') {
-                input.value = value ? '1' : '0';
-            } else {
-                input.value = value;
-            }
-
-            // Highlight low-confidence cells with gold border
-            const note = s.confidence_notes[ruleKey];
-            if (note) {
-                const cell = input.closest('td');
-                cell.classList.add('ai-highlight');
-                cell.title = note;
-            }
-        }
-
-        // Auto-set status to eliminated if AI flagged them
-        if (eliminatedNames.has(s.castaway_name.toLowerCase())) {
-            const statusSelect = row.querySelector('[data-status]');
-            if (statusSelect) statusSelect.value = 'eliminated';
-        }
-    }
-}
-
-let currentHighlights = {};
-const highlightLabels = {
-    reward_challenge: 'Reward Challenge',
-    immunity_challenge: 'Immunity Challenge',
-    went_to_tribal: 'Went to Tribal',
-    voted_out: 'Voted Out',
-    idols_advantages: 'Idols / Advantages',
-    tribe_compositions: 'Tribe Rosters',
-};
-const highlightIcons = {
-    reward_challenge: '&#x1F3C6;',
-    immunity_challenge: '&#x1F6E1;',
-    went_to_tribal: '&#x1F525;',
-    voted_out: '&#x1F6A8;',
-    idols_advantages: '&#x1F48E;',
-    tribe_compositions: '&#x1F465;',
-};
-
-function showAiNotes(result) {
-    const card = document.getElementById('ai-notes-card');
-    const content = document.getElementById('ai-notes-content');
-    currentHighlights = result.episode_highlights || {};
-
-    renderHighlightsDisplay();
-
-    let extra = '';
-    if (result.episode_summary) {
-        extra += `<p><strong>Summary:</strong> ${escapeHtml(result.episode_summary)}</p>`;
-    }
-    if (result.notes) {
-        extra += `<p style="font-size:0.85rem;color:var(--text-muted);"><strong>Notes:</strong> ${escapeHtml(result.notes)}</p>`;
-    }
-    extra += `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
-        <span style="display:inline-block;width:12px;height:12px;border:2px solid #d4930d;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>
-        Gold-bordered cells = low confidence. Verify before submitting.
-    </p>`;
-
-    // Append extra after highlights
-    content.innerHTML += extra;
-    card.classList.remove('hidden');
-}
-
-function renderHighlightsDisplay() {
-    const content = document.getElementById('ai-notes-content');
-    let html = '';
-    if (Object.keys(currentHighlights).length > 0) {
-        html += '<div id="highlights-display" style="margin-bottom:1rem;">';
-        for (const [key, label] of Object.entries(highlightLabels)) {
-            if (currentHighlights[key]) {
-                html += `<p style="margin:0.25rem 0;"><span style="margin-right:0.4rem;">${highlightIcons[key]}</span><strong>${label}:</strong> ${escapeHtml(currentHighlights[key])}</p>`;
-            }
-        }
-        html += '</div>';
-    }
-    content.innerHTML = html;
-}
-
-function toggleEditHighlights() {
-    const editDiv = document.getElementById('ai-notes-edit');
-    const btn = document.getElementById('edit-highlights-btn');
-    if (!editDiv.classList.contains('hidden')) {
-        editDiv.classList.add('hidden');
-        btn.textContent = 'Edit';
-        return;
-    }
-    let html = '';
-    for (const [key, label] of Object.entries(highlightLabels)) {
-        html += `<div class="form-group" style="margin-bottom:0.5rem;">
-            <label style="font-size:0.8rem;">${label}</label>
-            <input type="text" id="hl-${key}" value="${escapeHtml(currentHighlights[key] || '')}" style="width:100%;">
-        </div>`;
-    }
-    html += `<button class="btn" onclick="saveHighlights()" style="padding:0.4rem 1rem;font-size:0.85rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;">Save Highlights</button>`;
-    editDiv.innerHTML = html;
-    editDiv.classList.remove('hidden');
-    btn.textContent = 'Cancel';
-}
-
-function saveHighlights() {
-    for (const key of Object.keys(highlightLabels)) {
-        const input = document.getElementById(`hl-${key}`);
-        if (input) {
-            currentHighlights[key] = input.value.trim();
-            if (!currentHighlights[key]) delete currentHighlights[key];
-        }
-    }
-    renderHighlightsDisplay();
-    // Re-append the extra notes below
-    const content = document.getElementById('ai-notes-content');
-    const extra = content.querySelectorAll(':scope > p');
-    // highlights display is re-rendered, extra <p> tags were wiped — they'll be there from initial render
-    document.getElementById('ai-notes-edit').classList.add('hidden');
-    document.getElementById('edit-highlights-btn').textContent = 'Edit';
-    showAlert(document.getElementById('scoring-alert'), 'Highlights updated.', 'success');
 }
 
 function escapeHtml(str) {
@@ -656,10 +613,6 @@ async function uploadConfessionals(fileInput) {
             const input = row.querySelector('[data-rule="confessional_count"]');
             if (!input) continue;
             input.value = entry.count;
-            // Remove gold highlight on this cell
-            const cell = input.closest('td');
-            cell.classList.remove('ai-highlight');
-            cell.removeAttribute('title');
             matched++;
         }
 
