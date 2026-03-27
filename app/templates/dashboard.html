@@ -319,10 +319,13 @@ function formatRecap(text) {
             }
             // **bold** → <strong> with accent color
             let formatted = line.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--sand);font-family:\'Cinzel\',serif;letter-spacing:0.03em;">$1</strong>');
-            // {color}text{/color} → colored span
-            formatted = formatted.replace(/\{(orange|red|green|sand|blue)\}(.+?)\{\/\1\}/g, (_, color, content) => {
-                const colorMap = { orange: 'var(--torch-orange)', red: 'var(--ember-red)', green: 'var(--green)', sand: 'var(--sand)', blue: '#3B82F6' };
-                return `<span style="color:${colorMap[color]};font-weight:600;">${content}</span>`;
+            // {TribeName}text{/TribeName} → tribe-colored span
+            formatted = formatted.replace(/\{(\w+)\}(.+?)\{\/\1\}/g, (_, key, content) => {
+                const tc = typeof getTribeColor === 'function' ? getTribeColor(key) : null;
+                if (tc && tc !== '#6b7280') {
+                    return `<span style="color:${tc};font-weight:600;">${content}</span>`;
+                }
+                return `{${key}}${content}{/${key}}`;
             });
             // - bullet lines
             if (/^\s*-\s+/.test(formatted)) {
@@ -419,11 +422,7 @@ async function loadLatestRecap(seasonId, lb) {
                 <button type="button" class="recap-tb" style="font-weight:700;" onclick="recapInsert('bold')" title="Bold (**text**)">B</button>
                 <button type="button" class="recap-tb" onclick="recapInsert('bullet')" title="Bullet point (- )">&#x2022;</button>
                 <span style="width:1px;height:18px;background:var(--bark-brown);margin:0 0.2rem;"></span>
-                <button type="button" class="recap-tb" style="background:var(--torch-orange);color:#fff;border-color:var(--torch-orange);" onclick="recapInsert('color','orange')" title="Orange text">A</button>
-                <button type="button" class="recap-tb" style="background:var(--ember-red);color:#fff;border-color:var(--ember-red);" onclick="recapInsert('color','red')" title="Red text">A</button>
-                <button type="button" class="recap-tb" style="background:var(--green);color:#fff;border-color:var(--green);" onclick="recapInsert('color','green')" title="Green text">A</button>
-                <button type="button" class="recap-tb" style="background:#3B82F6;color:#fff;border-color:#3B82F6;" onclick="recapInsert('color','blue')" title="Blue text">A</button>
-                <button type="button" class="recap-tb" style="background:var(--sand);color:#fff;border-color:var(--sand);" onclick="recapInsert('color','sand')" title="Sand text">A</button>
+                <span id="recap-tribe-colors"></span>
             </div>
             <div style="display:flex;gap:0.75rem;min-height:250px;" id="recap-split">
                 <textarea id="recap-edit-textarea" oninput="updateRecapPreview()" style="flex:1;min-height:250px;font-family:'Source Sans Pro',sans-serif;font-size:0.85rem;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:var(--bg-input);color:inherit;resize:vertical;line-height:1.5;"></textarea>
@@ -468,6 +467,17 @@ async function loadLatestRecap(seasonId, lb) {
 
         recapContainer.innerHTML = html;
         recapContainer.classList.remove('hidden');
+
+        // Populate tribe color buttons from active tribes
+        const tribeColorContainer = document.getElementById('recap-tribe-colors');
+        if (tribeColorContainer) {
+            let btns = '';
+            for (const tribe of sortedTribes) {
+                const tc = getTribeColor(tribe);
+                btns += `<button type="button" class="recap-tb" style="background:${tc};color:#fff;border-color:${tc};font-size:0.6rem;width:auto;padding:0 6px;font-family:'Cinzel',serif;letter-spacing:0.04em;margin-right:2px;" onclick="recapInsert('color','${tribe}')" title="${tribe} color">${tribe}</button>`;
+            }
+            tribeColorContainer.innerHTML = btns;
+        }
     } catch (e) {
         // Non-critical — just don't show recap section
         console.warn('Could not load episode recap:', e);
