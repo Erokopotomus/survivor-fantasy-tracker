@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - Survivor Fantasy{% endblock %}
 {% block content %}
+<style>
+.recap-tb {
+    display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;padding:0;font-size:0.75rem;
+    border-radius:4px;border:1px solid var(--bark-brown);
+    background:var(--bg-input);color:inherit;cursor:pointer;
+    transition:opacity 0.15s;
+}
+.recap-tb:hover { opacity:0.8; }
+@media (max-width: 900px) {
+    #recap-split { flex-direction:column !important; }
+    #recap-split > textarea,
+    #recap-split > div { min-height:180px !important; }
+}
+</style>
 <div id="page-content">
     <div id="season-status-bar" class="hidden" style="display:none;align-items:center;flex-wrap:wrap;gap:0.75rem 1rem;padding:0.75rem 1rem;margin-bottom:1rem;border-radius:8px;border:1px solid rgba(196,180,158,0.4);background:linear-gradient(135deg, #e8e2d5, #e2dace);">
         <div style="flex:1;min-width:200px;">
@@ -304,6 +319,11 @@ function formatRecap(text) {
             }
             // **bold** → <strong> with accent color
             let formatted = line.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--sand);font-family:\'Cinzel\',serif;letter-spacing:0.03em;">$1</strong>');
+            // {color}text{/color} → colored span
+            formatted = formatted.replace(/\{(orange|red|green|sand|blue)\}(.+?)\{\/\1\}/g, (_, color, content) => {
+                const colorMap = { orange: 'var(--torch-orange)', red: 'var(--ember-red)', green: 'var(--green)', sand: 'var(--sand)', blue: '#3B82F6' };
+                return `<span style="color:${colorMap[color]};font-weight:600;">${content}</span>`;
+            });
             // - bullet lines
             if (/^\s*-\s+/.test(formatted)) {
                 const content = formatted.replace(/^\s*-\s+/, '');
@@ -394,20 +414,24 @@ async function loadLatestRecap(seasonId, lb) {
         }
         html += '</div>';
         html += `<div id="recap-edit" style="display:none;">
-            <div style="display:flex;gap:0.3rem;margin-bottom:0.4rem;flex-wrap:wrap;">
-                <button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;font-family:'Cinzel',serif;color:var(--torch-orange);font-weight:700;" onclick="recapInsert('header')" title="Section header">H</button>
-                <button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;font-weight:700;color:var(--sand);" onclick="recapInsert('bold')" title="Bold text">B</button>
-                <button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;color:var(--torch-orange);" onclick="recapInsert('bullet')" title="Bullet point">&#x2022; List</button>
-                <button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;" onclick="recapInsert('divider')" title="Blank line between sections">&#x2014; Break</button>
-                <div style="flex:1;"></div>
-                <button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;" onclick="toggleRecapPreview()" id="recap-preview-toggle">Preview</button>
+            <div style="display:flex;gap:0.25rem;margin-bottom:0.4rem;flex-wrap:wrap;align-items:center;">
+                <button type="button" class="recap-tb" style="font-family:'Cinzel',serif;font-weight:700;color:var(--torch-orange);" onclick="recapInsert('header')" title="Section header (## )">H</button>
+                <button type="button" class="recap-tb" style="font-weight:700;" onclick="recapInsert('bold')" title="Bold (**text**)">B</button>
+                <button type="button" class="recap-tb" onclick="recapInsert('bullet')" title="Bullet point (- )">&#x2022;</button>
+                <span style="width:1px;height:18px;background:var(--bark-brown);margin:0 0.2rem;"></span>
+                <button type="button" class="recap-tb" style="background:var(--torch-orange);color:#fff;border-color:var(--torch-orange);" onclick="recapInsert('color','orange')" title="Orange text">A</button>
+                <button type="button" class="recap-tb" style="background:var(--ember-red);color:#fff;border-color:var(--ember-red);" onclick="recapInsert('color','red')" title="Red text">A</button>
+                <button type="button" class="recap-tb" style="background:var(--green);color:#fff;border-color:var(--green);" onclick="recapInsert('color','green')" title="Green text">A</button>
+                <button type="button" class="recap-tb" style="background:#3B82F6;color:#fff;border-color:#3B82F6;" onclick="recapInsert('color','blue')" title="Blue text">A</button>
+                <button type="button" class="recap-tb" style="background:var(--sand);color:#fff;border-color:var(--sand);" onclick="recapInsert('color','sand')" title="Sand text">A</button>
             </div>
-            <textarea id="recap-edit-textarea" style="width:100%;min-height:220px;font-family:'Source Sans Pro',sans-serif;font-size:0.9rem;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:var(--bg-input);color:inherit;resize:vertical;line-height:1.5;"></textarea>
-            <div id="recap-preview" class="recap-body" style="display:none;min-height:220px;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:rgba(232,226,213,0.5);"></div>
+            <div style="display:flex;gap:0.75rem;min-height:250px;" id="recap-split">
+                <textarea id="recap-edit-textarea" oninput="updateRecapPreview()" style="flex:1;min-height:250px;font-family:'Source Sans Pro',sans-serif;font-size:0.85rem;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:var(--bg-input);color:inherit;resize:vertical;line-height:1.5;"></textarea>
+                <div id="recap-live-preview" class="recap-body" style="flex:1;min-height:250px;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:rgba(232,226,213,0.5);overflow-y:auto;font-size:0.85rem;"></div>
+            </div>
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
                 <button class="btn btn-sm btn-green" onclick="saveRecapEdit()">Save</button>
                 <button class="btn btn-sm btn-outline" onclick="toggleRecapEdit()">Cancel</button>
-                <span class="text-muted" style="font-size:0.7rem;margin-left:auto;">## Header&ensp;|&ensp;**bold**&ensp;|&ensp;- bullet</span>
             </div>
         </div>`;
         html += '</div>';
@@ -458,98 +482,71 @@ function toggleRecapEdit() {
         edit.style.display = 'none';
         view.style.display = '';
     } else {
-        document.getElementById('recap-edit-textarea').value = recapRawText;
-        // Reset preview state
-        document.getElementById('recap-edit-textarea').style.display = '';
-        document.getElementById('recap-preview').style.display = 'none';
-        document.getElementById('recap-preview-toggle').textContent = 'Preview';
+        const ta = document.getElementById('recap-edit-textarea');
+        ta.value = recapRawText;
         view.style.display = 'none';
         edit.style.display = '';
+        updateRecapPreview();
+        ta.focus();
     }
 }
 
-function recapInsert(type) {
+function updateRecapPreview() {
+    const ta = document.getElementById('recap-edit-textarea');
+    const preview = document.getElementById('recap-live-preview');
+    if (ta.value.trim()) {
+        preview.innerHTML = formatRecap(ta.value);
+    } else {
+        preview.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Live preview appears here...</p>';
+    }
+}
+
+function recapInsert(type, arg) {
     const ta = document.getElementById('recap-edit-textarea');
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
     const text = ta.value;
     const selected = text.substring(start, end);
-    let insert = '';
-    let cursorOffset = 0;
 
     if (type === 'header') {
-        // If selection, wrap it; otherwise insert placeholder
-        const label = selected || 'SECTION TITLE';
-        // Put ## at start of line
+        const label = selected || 'Section Title';
         const lineStart = text.lastIndexOf('\n', start - 1) + 1;
         const before = text.substring(0, lineStart);
         const currentLine = text.substring(lineStart, end);
         if (currentLine.startsWith('## ')) {
-            // Already a header — unwrap
             ta.value = before + currentLine.replace(/^## /, '') + text.substring(end);
             ta.selectionStart = start - 3;
             ta.selectionEnd = end - 3;
         } else {
             ta.value = before + '## ' + (selected ? text.substring(lineStart, end) : label) + text.substring(end);
             ta.selectionStart = lineStart + 3;
-            ta.selectionEnd = lineStart + 3 + (selected ? selected.length : label.length);
+            ta.selectionEnd = lineStart + 3 + (selected || label).length;
         }
-        ta.focus();
-        return;
-    }
-
-    if (type === 'bold') {
-        const label = selected || 'bold text';
-        insert = `**${label}**`;
-        ta.value = text.substring(0, start) + insert + text.substring(end);
+    } else if (type === 'bold') {
+        const label = selected || 'text';
+        ta.value = text.substring(0, start) + `**${label}**` + text.substring(end);
         ta.selectionStart = start + 2;
-        ta.selectionEnd = start + 2 + (selected ? selected.length : label.length);
-        ta.focus();
-        return;
-    }
-
-    if (type === 'bullet') {
+        ta.selectionEnd = start + 2 + (selected || label).length;
+    } else if (type === 'bullet') {
         if (selected) {
-            // Convert selected lines to bullets
             const lines = selected.split('\n').map(l => l.startsWith('- ') ? l : `- ${l}`).join('\n');
             ta.value = text.substring(0, start) + lines + text.substring(end);
             ta.selectionStart = start;
             ta.selectionEnd = start + lines.length;
         } else {
-            insert = '- ';
-            ta.value = text.substring(0, start) + insert + text.substring(end);
-            ta.selectionStart = ta.selectionEnd = start + insert.length;
+            ta.value = text.substring(0, start) + '- ' + text.substring(end);
+            ta.selectionStart = ta.selectionEnd = start + 2;
         }
-        ta.focus();
-        return;
+    } else if (type === 'color') {
+        const label = selected || 'text';
+        const wrap = `{${arg}}${label}{/${arg}}`;
+        ta.value = text.substring(0, start) + wrap + text.substring(end);
+        ta.selectionStart = start + arg.length + 2;
+        ta.selectionEnd = ta.selectionStart + (selected || label).length;
     }
 
-    if (type === 'divider') {
-        // Insert a blank line
-        const needsNewline = start > 0 && text[start - 1] !== '\n' ? '\n' : '';
-        insert = needsNewline + '\n';
-        ta.value = text.substring(0, start) + insert + text.substring(end);
-        ta.selectionStart = ta.selectionEnd = start + insert.length;
-        ta.focus();
-        return;
-    }
-}
-
-function toggleRecapPreview() {
-    const ta = document.getElementById('recap-edit-textarea');
-    const preview = document.getElementById('recap-preview');
-    const btn = document.getElementById('recap-preview-toggle');
-    if (preview.style.display === 'none') {
-        preview.innerHTML = ta.value.trim() ? formatRecap(ta.value) : '<p class="text-muted">Nothing to preview.</p>';
-        ta.style.display = 'none';
-        preview.style.display = '';
-        btn.textContent = 'Edit';
-    } else {
-        preview.style.display = 'none';
-        ta.style.display = '';
-        btn.textContent = 'Preview';
-        ta.focus();
-    }
+    ta.focus();
+    updateRecapPreview();
 }
 
 async function saveRecapEdit() {
