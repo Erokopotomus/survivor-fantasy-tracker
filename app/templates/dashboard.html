@@ -189,6 +189,9 @@ const STATUS_COLORS = {
 };
 
 let activeSeasonId = null;
+let recapEpisodeId = null;
+let recapSeasonId = null;
+let recapRawText = null;
 
 function renderStatusBar(season, seasonId) {
     activeSeasonId = seasonId;
@@ -371,14 +374,32 @@ async function loadLatestRecap(seasonId, lb) {
 
         html += '<div class="dashboard-grid" style="gap:1.5rem;align-items:start;">';
 
+        // Store for editing
+        recapEpisodeId = latestEp.id;
+        recapSeasonId = seasonId;
+        recapRawText = recap.episode_description || '';
+
         // Left: Write-up
         html += '<div class="card">';
-        html += '<h3 class="card-header">Recap</h3>';
+        const auth = getAuth();
+        const editBtn = auth && auth.is_commissioner
+            ? ' <button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;" onclick="toggleRecapEdit()">Edit</button>'
+            : '';
+        html += `<h3 class="card-header" style="display:flex;justify-content:space-between;align-items:center;">Recap${editBtn}</h3>`;
+        html += '<div id="recap-view">';
         if (recap.episode_description) {
             html += `<div class="recap-body">${formatRecap(recap.episode_description)}</div>`;
         } else {
             html += '<p class="text-muted" style="font-size:0.9rem;">No recap written for this episode.</p>';
         }
+        html += '</div>';
+        html += `<div id="recap-edit" style="display:none;">
+            <textarea id="recap-edit-textarea" style="width:100%;min-height:200px;font-family:'Source Sans Pro',sans-serif;font-size:0.9rem;padding:0.5rem;border-radius:4px;border:1px solid var(--bark-brown);background:var(--bg-input);color:inherit;resize:vertical;"></textarea>
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                <button class="btn btn-sm btn-green" onclick="saveRecapEdit()">Save</button>
+                <button class="btn btn-sm btn-outline" onclick="toggleRecapEdit()">Cancel</button>
+            </div>
+        </div>`;
         html += '</div>';
 
         // Right: Score table grouped by tribe
@@ -416,6 +437,38 @@ async function loadLatestRecap(seasonId, lb) {
     } catch (e) {
         // Non-critical — just don't show recap section
         console.warn('Could not load episode recap:', e);
+    }
+}
+
+function toggleRecapEdit() {
+    const view = document.getElementById('recap-view');
+    const edit = document.getElementById('recap-edit');
+    const isEditing = edit.style.display !== 'none';
+    if (isEditing) {
+        edit.style.display = 'none';
+        view.style.display = '';
+    } else {
+        document.getElementById('recap-edit-textarea').value = recapRawText;
+        view.style.display = 'none';
+        edit.style.display = '';
+    }
+}
+
+async function saveRecapEdit() {
+    const text = document.getElementById('recap-edit-textarea').value;
+    try {
+        await apiPatch(`/api/seasons/${recapSeasonId}/episodes/${recapEpisodeId}`, { description: text });
+        recapRawText = text;
+        const view = document.getElementById('recap-view');
+        if (text.trim()) {
+            view.innerHTML = `<div class="recap-body">${formatRecap(text)}</div>`;
+        } else {
+            view.innerHTML = '<p class="text-muted" style="font-size:0.9rem;">No recap written for this episode.</p>';
+        }
+        document.getElementById('recap-edit').style.display = 'none';
+        view.style.display = '';
+    } catch (err) {
+        alert('Failed to save recap: ' + err.message);
     }
 }
 </script>
