@@ -4,7 +4,7 @@ import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -74,6 +74,19 @@ async def create_episode(
     db.add(episode)
     await db.flush()
     await db.refresh(episode)
+
+    # Merge episode: move all active castaways to the merged tribe
+    if body.is_merge:
+        await db.execute(
+            update(Castaway)
+            .where(
+                Castaway.season_id == season_id,
+                Castaway.status == CastawayStatus.ACTIVE,
+            )
+            .values(current_tribe="Manuevu")
+        )
+        await db.flush()
+
     return episode
 
 
