@@ -134,7 +134,7 @@ const TRIBE_COLORS = {
     'Cila': '#e67e22',
     'Kalo': '#14b8a6',
     'Vatu': '#8b5cf6',
-    'Manuevu': '#f5c518',
+    'Manuevu': '#e8b012',
 };
 
 // === Player Color Helpers ===

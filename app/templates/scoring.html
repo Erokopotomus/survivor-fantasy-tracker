@@ -504,9 +504,52 @@ async function loadTemplate() {
 
         loading.classList.add('hidden');
         container.classList.remove('hidden');
+
+        // Always show the Episode Summary card below the grid
+        await ensureSummaryCard(epId);
     } catch (err) {
         loading.innerHTML = `<p class="alert alert-error">${err.message}</p>`;
     }
+}
+
+async function ensureSummaryCard(epId) {
+    // Don't duplicate if wizard already created one
+    if (document.getElementById('quick-score-summary')) return;
+
+    // Fetch episode to get existing title/description
+    let title = '';
+    let description = '';
+    try {
+        const ep = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}`);
+        title = ep.title || '';
+        description = ep.description || '';
+    } catch (e) {
+        // Non-critical
+    }
+
+    wizardEpisodeId = wizardEpisodeId || parseInt(epId);
+
+    const container = document.getElementById('scoring-grid-container');
+    const card = document.createElement('div');
+    card.id = 'quick-score-summary';
+    card.className = 'card';
+    card.style.marginTop = '1rem';
+    card.style.borderLeft = '3px solid #2ecc71';
+
+    let html = '<h3 class="card-header" style="color:#2ecc71;">Episode Summary</h3>';
+    html += `<div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Title</label>
+        <input type="text" id="episode-summary-title" value="${escapeHtml(title)}" placeholder="Episode title..." style="font-size:0.95rem;">
+    </div>`;
+    html += `<div class="form-group" style="margin-bottom:0.5rem;">
+        <label>Notes</label>
+        <textarea id="episode-summary-text" rows="8" style="width:100%;resize:vertical;font-size:0.9rem;line-height:1.6;font-family:'Source Sans Pro',sans-serif;padding:0.5rem 0.75rem;">${escapeHtml(description)}</textarea>
+        <div style="font-size:0.72rem;color:var(--mud);margin-top:0.25rem;">Formatting: **bold**, ## Header, blank lines for spacing</div>
+    </div>`;
+    html += `<button class="btn btn-sm btn-green" onclick="saveSummary()" style="margin-top:0.25rem;">Save</button>`;
+    html += `<span id="summary-save-feedback" style="font-size:0.8rem;color:var(--green);margin-left:0.5rem;display:none;">Saved!</span>`;
+    card.innerHTML = html;
+    container.appendChild(card);
 }
 
 // Tribe color palette — uses TRIBE_COLORS from app.js (maps tribe name to hex),
