@@ -286,7 +286,6 @@ async def submit_episode_scores(
 
     episode.is_scored = True
     await db.flush()
-    await db.commit()
 
     return EpisodeScoreResponse(
         episode_id=episode.id,

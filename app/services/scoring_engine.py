@@ -90,6 +90,7 @@ async def score_episode_event(
             Episode.is_merge == True,
             Episode.episode_number <= episode.episode_number,
         )
+        .limit(1)
     )
     is_post_merge = merge_result.scalar_one_or_none() is not None
 
