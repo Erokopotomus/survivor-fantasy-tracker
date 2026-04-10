@@ -15,6 +15,16 @@
         <button class="btn" onclick="deleteEpisode()" id="delete-ep-btn" style="background:#e74c3c;border:none;display:none;">Delete Episode</button>
     </div>
 
+    <div id="episode-flags" class="hidden" style="display:none;gap:1rem;align-items:center;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:var(--bg-input);border-radius:6px;font-size:0.85rem;">
+        <label style="display:flex;align-items:center;gap:0.25rem;margin:0;cursor:pointer;">
+            <input type="checkbox" id="flag-merge" style="width:auto" onchange="updateEpisodeFlag('is_merge', this.checked)"> Merge Episode
+        </label>
+        <label style="display:flex;align-items:center;gap:0.25rem;margin:0;cursor:pointer;">
+            <input type="checkbox" id="flag-finale" style="width:auto" onchange="updateEpisodeFlag('is_finale', this.checked)"> Finale
+        </label>
+        <span id="flag-feedback" style="color:var(--green);display:none;">Saved!</span>
+    </div>
+
     <div id="new-episode-form" class="card hidden">
         <h3 class="card-header">Create New Episode</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
@@ -461,6 +471,19 @@ async function submitWizard() {
 
 // --- End Quick Score Wizard ---
 
+async function updateEpisodeFlag(field, value) {
+    const epId = document.getElementById('episode-select').value;
+    if (!epId) return;
+    try {
+        await apiPatch(`/api/seasons/${currentSeasonId}/episodes/${epId}`, { [field]: value });
+        const fb = document.getElementById('flag-feedback');
+        fb.style.display = 'inline';
+        setTimeout(() => fb.style.display = 'none', 1500);
+    } catch (e) {
+        showAlert(document.getElementById('scoring-alert'), `Failed to update: ${e.message}`);
+    }
+}
+
 async function loadTemplate() {
     const epId = document.getElementById('episode-select').value;
     if (!epId) return;
@@ -471,6 +494,12 @@ async function loadTemplate() {
     container.classList.add('hidden');
 
     try {
+        // Fetch episode details to populate flags
+        const epDetail = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}`);
+        document.getElementById('flag-merge').checked = epDetail.is_merge;
+        document.getElementById('flag-finale').checked = epDetail.is_finale;
+        document.getElementById('episode-flags').style.display = 'flex';
+
         currentTemplate = await apiGet(`/api/seasons/${currentSeasonId}/episodes/${epId}/template`);
         renderGrid(currentTemplate);
 
